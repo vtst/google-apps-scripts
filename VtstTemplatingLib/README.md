@@ -35,17 +35,16 @@ available version.
 
 ## Tutorial
 
-1. Create a folder in Google Drive containing documents. You may
-   include variables like {{foo}} and {{bar}} in the names of the
-   folder and files as well as in the body of documents.
+First, create a folder in Google Drive containing documents. You may
+include variables like {{foo}} and {{bar}} in the names of the
+folder and files as well as in the body of documents.
 
-2. Call the method instantiate:
+Then, you can call the method instantiate:
 
-    var templateFolder = DriveApp.getFolderById(...); var view = {
-
-    first_name: 'Vincent',
-    last_name: 'Simonet'
-
+    var templateFolder = DriveApp.getFolderById(...); 
+    var view = {
+      first_name: 'Vincent',
+      last_name: 'Simonet'
     };
     var cloner = VtstTemplatingLib.instantiate(view, templateFolder);
     cloner.getInstance(templateFolder);
@@ -62,6 +61,8 @@ available version.
 
   This method returns a DriveCloner object, which allows to access the
   instantiated folders and files.
+
+ 
 
     DriveCloner.getInstance(file or folder or fileId or folderId)
 
