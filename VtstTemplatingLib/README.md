@@ -62,7 +62,7 @@ Then, you can call the method instantiate:
   This method returns a DriveCloner object, which allows to access the
   instantiated folders and files.
 
- 
+<b></b>
 
     DriveCloner.getInstance(file or folder or fileId or folderId)
 
