@@ -31,13 +31,20 @@ function isFolder_(fileOrFolder) {
   else return false;
 };
 
+var RE_DOLLAR_ = new RegExp('[$]', 'g');
+
 /**
 @param {*} view
 @param {string} str
 @return {string}
 */
 function subst_(view, str) {
-  return Mustache.render(str, view);
+  str = str + '';
+  for (var key in view) {
+    var re = new RegExp('{{' + key + '}}', 'g');
+    str = str.replace(re, (view[key] + '').replace(RE_DOLLAR_, '$$$$'));
+  }
+  return str;
 };
 
 /**

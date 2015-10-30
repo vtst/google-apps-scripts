@@ -129,28 +129,31 @@ DocumentHandler_.prototype.replaceValues_ = function(view, doc) {
 };
 
 /**
+@param {Object.<string, string>} view
 @param {DriveCloner_} cloner
 @param {string} url
 */
-DocumentHandler_.prototype.rewriteUrl_ = function(cloner, url) {
+DocumentHandler_.prototype.rewriteUrl_ = function(view, cloner, url) {
+  url = subst_(view, decodeURI(url));
   cloner.forEachFileId(function(originalId, copyId) {
     url = url.replace('/' + originalId + '/', '/' + copyId + '/');
   });
-  return url;
+  return encodeURI(url);
 };
 
 /**
+@param {Object.<string, string>} view
 @param {DriveCloner_} cloner
 @param {DocumentApp.Document} doc
 */
-DocumentHandler_.prototype.rewriteUrls_ = function(cloner, doc) {
+DocumentHandler_.prototype.rewriteUrls_ = function(view, cloner, doc) {
   this.iterDocument_(doc, function(element) {
     if (element.getType() == DocumentApp.ElementType.TEXT) {
       var text = element.asText();
       this.iterTextFragments_(text, function(start, end) {
         var url = text.getLinkUrl(start);
         if (url) {
-          text.setLinkUrl(start, end, this.rewriteUrl_(cloner, url));
+          text.setLinkUrl(start, end, this.rewriteUrl_(view, cloner, url));
         }
       }, this);
     }
@@ -160,7 +163,7 @@ DocumentHandler_.prototype.rewriteUrls_ = function(cloner, doc) {
 DocumentHandler_.prototype.apply = function(view, cloner, file) {
   var doc = DocumentApp.openById(file.getId());
   this.replaceValues_(view, doc);
-  this.rewriteUrls_(cloner, doc);
+  this.rewriteUrls_(view, cloner, doc);
 };
 
 registerFileTypeHandler('application/vnd.google-apps.document', DocumentHandler_);
