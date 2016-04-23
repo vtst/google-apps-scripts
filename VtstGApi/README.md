@@ -25,9 +25,45 @@ You may add the library in your Google Apps Script project following the procedu
 
 ### Calling an API without authentication
 
-If you're using an API which does not require authentication, you can proceed as follows:
+If the API you want to use does not require OAuth 2.0 authentication (this is in general the
+case for APIs which do not manipulate user data, like the [URL Shortener API](https://developers.google.com/url-shortener/)),
+you can follow the instructions in this section.
+
+#### Setting up your project
+
+In this section, you will set up your project in order to get an API key. If the API you
+want to use does not require an API key, you can skip this section
+
+* In the Google Apps Script Editor, select _Resources_ then _Developers Console Project_ in the menu.
+* In the dialog _Developers Console Project_, click on the link below _This script is currently associated with project:_
+  to open the Google API Console.
+* In the _Google API Console_, select the API you want to use (e.g. _Google Drive API_).
+* On the API page, click on _Enable_.
+* In the navigation menu on the left hand side, click on _Credentials_.
+* Click on _Create credentials_ and then _API key_.
+* In the dialog, click on _Server key_.
+* Fill the name you like for the key, leave the field _Accept requests from these server IP addresses_ empty
+  and click on _Create_.
+* Copy the API key into your Google Apps Script code.
+
+#### Implementing code
+
+Then, you can call the API as follows:
+
+    function testShort() {
+      gapi.client.load('urlshortener', 'v1');
+      gapi.client.setApiKey('[...]');
+      var response = gapi.client.urlshortener.url.insert({
+        longUrl: 'http://your-long-url.com'
+      });
+      Logger.log(JSON.stringify(response, null, 2));
+    }
 
 ### Calling an API with OAuth 2.0 authentication
+
+If the API you want to use requires OAuth 2.0 authentication (this is in general the
+case for APIs which manipulate user data, like the [Google Drive API](https://developers.google.com/drive/v3/web/about-sdk)),
+you can follow the instructions in this section.
 
 #### Setting up your project
 
@@ -137,6 +173,10 @@ Set the OAuth2 authentication token.
 Clear the authentication token stored by `VtstGApi.auth.authorize` in user properties.
     
 ### Client
+
+    gapi.client.setApiKey(key)
+    
+Sets the API key for the application. Some APIs require this to be set in order to work. 
 
     gapi.client.load(name, version, root)
     
