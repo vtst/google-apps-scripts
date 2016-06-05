@@ -105,10 +105,10 @@ Then, you can call the API as follows:
     
     function example() {
       gapi.auth.authorizeOrFail(OAUTH_PARAMS_, 'gapiCallback');
-      gapi.client.load('drive', 'v2');
+      gapi.client.load('drive', 'v2').call();
       var response = gapi.client.drive.files.list({
         'pageSize': 10
-      });
+      }).call();
       Logger.log(response);
     }
     
@@ -125,6 +125,54 @@ authorization if some authorization is needed.
 Every call to the API returns a `response` object, with boolean fields `success` and
 `error` indicating the response status (`response.success == !response.error`).
 In case of success, the result is given by the field `result`.
+
+### Batch requests
+
+Batch requests are supported as well.  Here is an example:
+
+    gapi.client.load('urlshortener', 'v1').call();
+    gapi.client.setApiKey('AIzaSyDeBPZPMs4nnI1Vn0mUGTXPWEO6I9wA2mc');
+    var batch = gapi.client.newBatch();
+    batch.add(client.urlshortener.url.insert({
+      longUrl: 'http://your-first-long-url.com'
+    }));
+    batch.add(client.urlshortener.url.insert({
+      longUrl: 'http://your-second-long-url.com'
+    }));
+    var response = batch.call();
+    Logger.log(JSON.stringify(response, null, 2));
+
+### A note about promises
+
+The functions `gapi.client.load` and `gapi.client.request`, as well as all API
+requests return asynchronouse promises (in the same way as the
+[API Client Library for JavaScript](https://developers.google.com/api-client-library/javascript/start/start-js).
+
+One can use the `then` method of promises as in JavaScript:
+
+    client.urlshortener.url.insert({
+      longUrl: 'http://your-second-long-url.com'
+    }).then(function(response) {
+      ...
+    }, function(error) {
+      ...
+    });
+    
+This allows to directly port JavaScript code to Google Apps Script.
+
+However, Google Apps Script code is generally wrote in synchronous style. For this
+purpose, the returned promises have an extra method `.call()`, which resolves the
+promises and return the result value.  In case of error, this method raises an
+exception.
+
+    try {
+      var response = client.urlshortener.url.insert({
+        longUrl: 'http://your-second-long-url.com'
+      }).call();
+      ...
+    } catch (error) {
+      ...
+    }
 
 ## Reference
 
@@ -180,14 +228,15 @@ Sets the API key for the application. Some APIs require this to be set in order 
 
     gapi.client.load(name, version, root)
     
-Load an API.  The loaded API is returned by the method, and added as a field named
-`<name>` of `gapi.client` (e.g. `gapi.client.calendar`).
+Load an API.  The returned object is a promise, whose value is the loaded API.  The loaded
+API is also added as a field naed `<name>` to the global object `gapi.client`
+(e.g. `gapi.client.calendar`).
 
 * `name` (string): the name of the API to load.
 * `version` (string): the version of the API to load.
 * `root` (optional string): the root URL of the API server. Leave empty for using public
   Google APIs.
-* Return the API module, or `null` if loading fails.
+* Return a promise whose value is the API, or `null` if loading failed.
     
     gapi.client.loadOrFail(name, version, root)
     
@@ -196,14 +245,14 @@ fails.
     
     gapi.client.request(args)
     
-Send an HTTP request and return a response object.
+Send an HTTP request and return a promise.
 
 * `args`: an object encapsulating the arguments for this method.  Fields are the
   following:
   * `path` (required, string): The URL for the request.
   * `method` (string): The HTTP method to use, `GET` by default.
   * `params` (Object): Dictionary of URL parameters.
-  * `headers` (Object): Dictionary of additional HTTP heads.
+  * `headers` (Object): Dictionary of additional HTTP heads. 
 
 ## License
 
