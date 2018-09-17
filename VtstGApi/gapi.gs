@@ -397,6 +397,9 @@ sce.gapi.impl_.getPath = function(path, parameterDescs, params) {
   path.split('/').forEach(function(fragment) {
     if (fragment.charAt(0) == '{' && fragment.charAt(fragment.length - 1) == '}') {
       var name = fragment.substr(1, fragment.length - 2);
+      if (name.charAt(0) == '+') {
+        name = name.substr(1);
+      }
       var parameterDesc = parameterDescs[name];
       if (!parameterDesc) throw 'Unknown parameter in path: ' + name;
       if (!(name in params)) throw 'Required path parameter ' + name + ' is missing.';
