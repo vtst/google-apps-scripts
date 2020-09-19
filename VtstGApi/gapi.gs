@@ -397,6 +397,9 @@ sce.gapi.impl_.getPath = function(path, parameterDescs, params) {
   path.split('/').forEach(function(fragment) {
     if (fragment.charAt(0) == '{' && fragment.charAt(fragment.length - 1) == '}') {
       var name = fragment.substr(1, fragment.length - 2);
+      if (name.charAt(0) == '+') {
+        name = name.substr(1);
+      }
       var parameterDesc = parameterDescs[name];
       if (!parameterDesc) throw 'Unknown parameter in path: ' + name;
       if (!(name in params)) throw 'Required path parameter ' + name + ' is missing.';
@@ -486,15 +489,15 @@ sce.gapi.impl_.addMethods = function(desc, api, methods) {
 
 /**
  @param {RestDescription} desc
+ @param {RestDescription=} opt_desc_level
  @return {Api}
  */
-sce.gapi.impl_.buildApi = function(desc) {
+sce.gapi.impl_.buildApi = function(desc, opt_desc_level) {
   var api = {};
-  sce.gapi.impl_.addMethods(desc, api, desc.methods);
-  for (var name in desc.resources) {
-    var subapi = {};
-    api[name] = subapi;
-    sce.gapi.impl_.addMethods(desc, subapi, desc.resources[name].methods);
+  var desc_level = opt_desc_level || desc;
+  sce.gapi.impl_.addMethods(desc, api, desc_level.methods);
+  for (var name in desc_level.resources) {
+    api[name] = sce.gapi.impl_.buildApi(desc, desc_level.resources[name]);
   }
   return api;
 };
