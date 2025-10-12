@@ -91,4 +91,4 @@ to add one year to every person in the recordset.
 
 ## License
 
-This library is distributed under the terms of the [GNU LGPL, version 2.1](http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html).
+This library is distributed under the terms of the [MIT license](../LICENSE).

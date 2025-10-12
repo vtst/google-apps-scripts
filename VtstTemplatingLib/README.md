@@ -68,4 +68,4 @@ Then, you can call the method instantiate:
 
 ## License
 
-This library is distributed under the terms of the GNU LGPL, version 2.1.
+This library is distributed under the terms of the [MIT license](../LICENSE).
