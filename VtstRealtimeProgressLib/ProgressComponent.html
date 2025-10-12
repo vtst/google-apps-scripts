@@ -1,0 +1,271 @@
+<style type="text/css">
+  .vrpl-container {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .vrpl-right-container {
+    display: block;
+  }
+
+  .vrpl-icon {
+    width: 48px;
+    height: 48px;
+    margin-right: 12px;
+  }
+
+  .vrpl-title {
+    font-weight: bold;
+  }
+
+  .vrpl-error .vrpl-title {
+    color: #ea4335;
+  }
+</style>
+
+<div style="display: none;">
+  <div id="vrpl-base64-icon-progress">
+    iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAEXUlEQVRoQ+1ZXUgUURS+M7paSmk9
+    9lAb9EeFmrsSURA9ZBhFuQu6u9KPRWUURYQ991r2UAmCFilC7oruD0Yl/YAPPQTtbmYFGT4o9VBP
+    qfmvO7czu842jvNz78ysP+A+7j33fN93zrln7pxh0DL/McucP1oRsNgZNC0DW16UZOYMZ19ECFeB
+    050KwnoxRnVDOWP1fUdfTpoh3rAAu89ZC0Su6iGDEa6LuAJX9OwV9ugWYPM6HjMMc94IuLAXhDSD
+    kDN6fFELyG937rLMoC9yYJjB7RzH3Pno9oeFdcgQJiXGIbwv6gq8J7Xn7agE2HzOZ7DhmBgAanpg
+    Io3d/bWsbUQOmEZAfD/GnWF3oIRUBLEAm9fZzzBok8jx8GRswvq54vkfNTBqAXENaCDi9ltJRBAJ
+    kJLHGDdF3IFKEgA9AhKJIBOhKcDuc/ig0sr/k8U3wq7AfRLyvI1eAbPl1AHldEINS1VAQatjfzpm
+    3onIVwH5elLyhgXEU8EcCrvbu5QwVQWIo0dTNmIwQxmYdRR2+RV5Ki7YfI5GBjFnEz7wDETeQhN5
+    wdYMAdCeg5HygEMOX1GAGBi6zXqtbqMkzgwBvG+lLMgKgK7zAFrmtXjsEf4ET8kCPdE35QzMAkNX
+    egit9bqUh6wAcdR+sWzWz7K28cUWoJSFeQL4W2XucNaEQFjtAJGIMquEeKzBtWOrpLfYeQIKfc5q
+    FqG7ifJBbRGXv4yEaKrPAO+fQ+hW1OWvEWPNEwAR+wYG23mjmVhsT3dFqHupCICADkBArVoCkrdH
+    o+Vj5iFWKmm5DKwIEKfYzEMs14lSngEj50fYKw6CtKxXBJgRYS0fVBmA18bvkJat8b7Lofyox9+j
+    BZDK9Xxf6TYLYnsTGPgHXCo3qrZR8YMMhLR8cPkrUklQy3eRz/kU2qKH+EFm9lVCi6DWurh8iK4S
+    0ofPOMtmwsRhSgsoJeu3EWvf4YwpPcT4/zWv02AThdZlSwlBDacQ/QiYFMarn+Y6Lc3CzHhsXXdl
+    aHAhRRQ0nsxNX52WHNlQvdAkBDi8kCBXXD1CU3CJylxIAfBSNQIvVdmJ5qM87CJ+qQc3DRCFSwsh
+    Asg3APkLarUvrKkKKGopPYhZtitpzHHnPniCjakUAZiVgPkkicFxxWFP8LUSpuZgCx5sITBKDpc4
+    jCuj7kBTKkTMI8/gjnC5gcGWQFJmLmp6OUHH4Qdm8IEk8TNttKgiYgi6k9Vod5rtNv2Ak0NLnrfX
+    LCFxqUA5dcKGI5Ly6Z6a+nug5/SrUZqyymsuzrZY1ryFw7pXsu8NNIvDpL6oBPBO7TAvhXmlaF46
+    B6qBm56uiZ7q6JMjkNd8fLMlI6MaQC/LrXMcVxL1BDtJyVNnYE42vM5WiJ6hiYXIXwiiXkpDXLCl
+    zoAURHr4aEhgBj2KlPuTB5dmr2kCBEeJz6xZ8MUR34Sh8AZZMhj/xoi9N5QzWrtkPrPqiZqZewyX
+    kJlk9PhaEaAnambu+Qfhi9pAPiHhkgAAAABJRU5ErkJggg==
+  </div>
+  <div id="vrpl-base64-icon-success">
+    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
+  </div>
+  <div id="vrpl-base64-icon-error">
+    iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAFdklEQVRoQ+1ZW0wcVRj+zwxhKYjY
+    dHcWrVEUSKu0SGGmpgbNXozRJ60ajT4Yo6aRVKNJvQRfffBSL0ltaogxxgcbrQlUX9pEdtnYNAq7
+    RExBWyW2aEK6u72AVC6lu8d/dneG6TC7e87MECVhXmB3/tv3385//iWwyh+yyu2HNQD/dQRdi8BY
+    S0ul11/9LBDaRYBstQRG6Tgh9GNv5vwBEjsz7wZ4xwCSIeU9QmCPHWMI0B5fJPG8HV6NxzaAVEj+
+    CAh5wYlynZfCISkaf9yOLG4AU6GOxstEGLdOEegVgL7jjSaGrN5PhjraKwjpBiCPWr0XM8KODbHB
+    H3mAcAFIhZSvsG89drUCOjlD6O2N/cPTPIrP3tdaI1ypHMEoNpn4jkqR+AOsspgBYMqcRGWbDIL/
+    qcpkG66NDZ9jVWZFN9W5df1lT9VpfFenvadAJ/yRRAOLXCYA6bD8CwVymxs5W8wojO5nGN2neUGU
+    BZAKy59izj6zZHy2W4oOv83iHV6aZKijixDhgA6C0m/90cSDpeSUBJAKb78bgH6vCRAAdnsjcV0B
+    r4Es9OmgsosK0KO3SUKDvv5ErBhvGQAK1QUBfOmLxJ9gMUKlOQQgKoG2WvX/hcW5zObjp2ZYeVNh
+    TCdYSics6qJ2Fn2BB9QXeEA9mVdKs1IkIbIaoNKlAkobiPBTgWcEjdjGw58My/N4onvy6qEPz4mH
+    rfiLAkAv6N73zM5uqPth7AKPAU4BFLqTrrNYFCwBpILyfhDI7hx4SkexkKxnmxKInAJQRWMWjGAW
+    3FFQsw9BvGRWaQ3A4H3IzNZKsbFLPN53I4VUGQMBqGgRlUVNt1UUlgGggYaqtOibK8XEAsaNCOQc
+    YXCmr/JiFTkyvmDUvwxAKrT9dRyJ832ewtdYPKbRgcV850WsaUljM6GFZkKz9DX/QGJvaQBh5Tck
+    aM4RZWCbFIuPsJl8NZVbEUgH5U1UICdV6Th+T+D43VAOgN59SvXfcqDcAmBOI7NNy1PIkHNrABwc
+    ZMYIGwt5LQLlcl97v+pr4K8dN67zeK7PXYAWCZ3bOJA4xQreTMeVQth3f8W+uzknhNB2qT+hDWR2
+    9TviOx9UWjICjOaPJfon3tRuLtlG0yH5ZUrIhzkiCr14kD3iyAKHzDiV9uFU+lD+HCB7fJGhD0oC
+    UBdUvvpq/bh20kod2p5jN6bP9MTFqubxMqOEmcnuMOeG8SzOtJxGsQ72Yh28kg/b8uObxTj03P1I
+    d0SlFSC70xsZPszCZ6TB+zjun0hjPp3Jfik69KJZBtOFhsJcvT8ymuQxADcZ3+Em494CzzFMxXt4
+    +M/e1SoJ6zy6Tq4LTS6NjGsOvNVI0QTe6dmf0ziW1xTG8ulLQl3z4ODf7Nx4mQnLC1i0lXnv27hS
+    mmsBW9g32MJy3WClH3ReL+buTk2PrUu9ypwMt7cSEH/WDSbQLfXHV2QnpOlIBuVXiUDe1T4LlN5Z
+    bNeq0pRdbKXDSg/O17s0gdksvFE/EH9rJaKAd2BcbMHS3onhHCoLoJBKcfwra0avRDolQ/JBQoi+
+    d0Knjfkj8S3lHMUEwAoEfjeP3amBtzuZDZoMdHgrRHIGk6Fm6R09gXuo1nLGM6WQUQj25c9R0VPG
+    79BTf1RmFjvWx0amWBRqNKlAyzUgVh/Dz20mvj4sWssllpV85ghozBcC8pYrIjlhJYxSOJjJZt+8
+    ITacu8Oan2Sncis2xm6svOcs+bO0Ey/tx3kcwQ1A96BpHc6j1EyLNXUYW7TeNnlk2QawBMT+b2WE
+    wie+aFzvcDyGa7SOAWiCfm9q8tTedF2XQIg6Q220TBE84EWg789kzu275f/yM6sdr7nJ41oE3DSK
+    R9YaAB5vrQTtv2toMk8HT1RgAAAAAElFTkSuQmCC
+  </div>
+</div>
+
+<script type="application/javascript">
+
+  let vrpl = {};
+
+  vrpl._DEFAULT_OPTIONS = {
+    pullIntervalInMs: 1000,
+    pushIntervalInMs: 1000,
+    progressTitle: 'Work in progress',
+    errorTitle: 'Oups! An error happened :(',
+    successTitle: 'Successfully completed',
+    successMessage: 'Click on the "Close" button below to continue.',
+    closeOnSuccess: false,
+    callbackName: 'vtstRealtimeProgressLibCallback'
+  };
+
+  vrpl._Runner = class {
+
+    // API
+  
+    #options = {key: 'VtstRealtimeProgressLib:' + Math.random().toString(36).substr(2), ... vrpl._DEFAULT_OPTIONS};
+    #element;
+    #successHandler;
+    #failureHandler;
+
+    inElement(element) {
+      if (this.#element) throw 'Element already defined.';
+      this.#element = typeof element === 'string' ? document.getElementById(element) : element;
+      return this;
+    }
+
+    withOptions(options) {
+      this.#options = {... this.#options, ... options};
+      return this;
+    }
+
+    withSuccessHandler(handler) {
+      if (this.#successHandler) throw 'Success handler already defined.';
+      this.#successHandler = handler;
+      return this;
+    }
+
+    withFailureHandler(handler) {
+      if (this.#failureHandler) throw 'Failure handler already defined.';
+      this.#failureHandler = handler;
+      return this;
+    }
+
+    // HTML elements
+    #iconElement;
+    #titleElement;
+    #messageElement;
+
+    #insertInDom() {
+      function createElement(tagName, className) {
+        let element = document.createElement(tagName);
+        element.classList.add(className);
+        return element;
+      }
+      const container = createElement('div', 'vrpl-container');
+      this.#iconElement = container.appendChild(createElement('img', 'vrpl-icon'));
+      const rightContainer = container.appendChild(createElement('div', 'vrpl-right-container'));
+      this.#titleElement = rightContainer.appendChild(createElement('div', 'vrpl-title'));
+      this.#messageElement = rightContainer.appendChild(createElement('div', 'vrpl-message'));
+      this.#element.replaceChildren(container);
+    }
+
+    // Internal state
+
+    #interval = null;
+    #intervalAnimation = null;
+    #animationStep = 0;
+
+    updateAnimation() {
+      this.#iconElement.style.transform = 'rotate(' + ((this.#animationStep % 4) * 90) + 'deg)';
+    };
+
+    #startPolling(options) {
+      if (this.#options.pullIntervalInMs > 0) {
+        this.#interval = setInterval(() => {
+          let message = google.script.run.withSuccessHandler(message => {
+            if (!this.#interval || typeof message !== 'string') return;
+            this.#messageElement.textContent = message;
+          })[this.#options.callbackName]('message', this.#options.key);
+        }, this.#options.pullIntervalInMs);
+      }
+      this.#intervalAnimation = setInterval(() => {
+        if (this.#animationStep > 0) {
+          ++this.#animationStep;
+          this.updateAnimation();
+        }
+      }, 500);
+    };
+
+    #stopPolling() {
+      clearInterval(this.#interval);
+      clearInterval(this.#intervalAnimation);
+      this.#interval = null;
+    };
+
+    update(title, message, opt_iconName) {
+      this.#titleElement.textContent = title;
+      this.#messageElement.textContent = message;
+      if (opt_iconName) {
+        this.#iconElement.src = 'data:image/png;base64,' + 
+          document.getElementById('vrpl-base64-icon-' + opt_iconName).textContent.replace(/[\s\r\n]/gm, '');
+        if (opt_iconName === 'error') this.#element.classList.add('vrpl-error');
+        this.#animationStep = opt_iconName === 'progress' ? 1 : 0;
+        this.updateAnimation();
+      }
+    };
+
+    // Entry point
+
+    _run(functionName) {
+      vrpl._reset();
+      if (!this.#element) throw '.inElement must be called';
+      this.#insertInDom();
+      this.update(this.#options.progressTitle, '', 'progress');
+      this.#startPolling();
+      const runner = this;
+      return function() {
+        const functionArguments = Array.from(arguments);
+        google.script.run.withFailureHandler(message => {
+          runner.#stopPolling();
+          runner.update(runner.#options.errorTitle, message, 'error');
+          if (runner.#failureHandler) runner.#failureHandler.call(null, message, runner);
+        }).withSuccessHandler(result => {
+          runner.#stopPolling();
+          runner.update(runner.#options.successTitle, runner.#options.successMessage, 'success');
+          if (runner.#successHandler) runner.#successHandler.call(null, result, runner);
+          if (runner.#options.closeOnSuccess) google.script.host.close();
+        })[runner.#options.callbackName]('run', {
+          key: runner.#options.key,
+          functionName: functionName,
+          pushIntervalInMs: runner.#options.pushIntervalInMs,
+          functionArguments: functionArguments
+        });
+      }
+    }
+
+  };
+
+  vrpl._reset = () => {
+    const runner = new vrpl._Runner();
+    vrpl.run = new Proxy(runner, {
+      get(target, prop, receiver) {
+        if (Reflect.has(target, prop)) {
+          const value = Reflect.get(target, prop, receiver);
+          if (typeof value === 'function') {
+            return function() {
+              const result = value.apply(target, arguments);
+              return result === target ? receiver : result;
+            }
+          } else {
+            return value;
+          }
+        }
+        return runner._run.call(target, prop);
+      }
+    });
+  }
+
+  vrpl._reset();
+</script>

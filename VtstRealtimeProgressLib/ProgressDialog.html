@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link href="https://ssl.gstatic.com/docs/script/css/add-ons1.css" rel="stylesheet">
+  <style>
+    body {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #progress-component {
+      flex-grow: 1;
+      display: flex;
+    }
+
+    .vrpl-container {
+      flex-grow: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="progress-component"></div>
+  <div>
+    <button id="close-button" onclick="google.script.host.close()" class="action" disabled>Close</button>
+  </div>
+
+  <?!= includeProgressComponent() ?>
+
+<script>
+
+  function enableCloseButton(isSuccess, message) {
+    document.getElementById('close-button').disabled = false;
+  }
+
+  function main() {
+    const options = <?!= JSON.stringify(options) ?>;
+    vrpl.run
+      .inElement('progress-component')
+      .withOptions()
+      .withFailureHandler(enableCloseButton)
+      .withSuccessHandler((message, runner) => {
+        if (typeof message === 'string') runner.update(options.successTitle, message);
+        enableCloseButton();
+      })
+      ['<?= functionName ?>'](<?!= functionArguments.map(JSON.stringify).join(', ') ?>);
+  }
+
+  main();
+
+</script>
+</body>
+
+
+</html>

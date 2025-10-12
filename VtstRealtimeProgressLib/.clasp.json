@@ -1,0 +1,20 @@
+{
+  "scriptId": "1DDJBuj2QOtYRrlJ4-o0Z-E6Yw-A0TsEBKA_b5WnVPZQycN_EBr463kiA",
+  "rootDir": "",
+  "scriptExtensions": [
+    ".js",
+    ".gs"
+  ],
+  "htmlExtensions": [
+    ".html"
+  ],
+  "jsonExtensions": [
+    ".json"
+  ],
+  "filePushOrder": [
+    "Reporter.js",
+    "ToplevelApi.js",
+    "ProgressDialog.html",
+    "ProgressComponent.html"],
+  "skipSubdirectories": true
+}
