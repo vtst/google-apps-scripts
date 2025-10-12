@@ -2,8 +2,8 @@
   "scriptId": "1lKIhGvHszbKcvFJsusmo0uN4muAYpoUW9HTJFODy132Znr0jVVBkrr3g",
   "rootDir": "",
   "scriptExtensions": [
-    ".js",
-    ".gs"
+    ".gs",
+    ".js"
   ],
   "htmlExtensions": [
     ".html"
@@ -12,9 +12,9 @@
     ".json"
   ],
   "filePushOrder": [
-    "Utils.js",
-    "Class.js",
-    "ToplevelApi.js"
+    "Utils.gs",
+    "Class.gs",
+    "ToplevelApi.gs"
   ],
   "skipSubdirectories": false
 }

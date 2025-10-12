@@ -2,8 +2,8 @@
   "scriptId": "1DDJBuj2QOtYRrlJ4-o0Z-E6Yw-A0TsEBKA_b5WnVPZQycN_EBr463kiA",
   "rootDir": "",
   "scriptExtensions": [
-    ".js",
-    ".gs"
+    ".gs",
+    ".js"
   ],
   "htmlExtensions": [
     ".html"
@@ -12,8 +12,8 @@
     ".json"
   ],
   "filePushOrder": [
-    "Reporter.js",
-    "ToplevelApi.js",
+    "Reporter.gs",
+    "ToplevelApi.gs",
     "ProgressDialog.html",
     "ProgressComponent.html"],
   "skipSubdirectories": true
