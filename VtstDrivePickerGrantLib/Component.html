@@ -1,0 +1,81 @@
+<script>
+
+  let vdpg = {};
+
+  // Stuff to manage the loading of the Google Picker API.
+
+  vdpg._apiLoaded = false;
+  vdpg._apiLoadHook = null;
+
+  function vdpg_onApiLoad() {
+    gapi.load('picker', {
+      callback: function () {
+        vdpg._apiLoaded = true;
+        if (vdpg._apiLoadHook) vdpg._apiLoadHook.call();
+      }
+    });
+  };
+
+  vdpg._waitForGoogleApiLoad = async (timeoutInMs) => {
+    if (vdpg._apiLoaded) return Promise.resolve();
+    let timeoutId;    
+    return new Promise((resolve, reject) => {
+      vdpg._apiLoadHook = () => {
+        clearTimeout(timeoutId);
+        vdpg._apiLoadHook = null;
+        resolve(); 
+      };
+      timeoutId = setTimeout(() => {
+        reject(new Error('Google Picker API could not be load'));
+        vdpg._apiLoadHook = null;
+      }, timeoutInMs);
+    });
+  };
+
+  // Properties of the options object:
+  // - appId: The ID of the application (passed to the picker API)
+  // - width and height: The dimensions of the picker, minimum size of (566,350) and a maximum size of (1051,650)
+  // Return the list of fileIds whose access remains to be granted.
+  vdpg.grantAccessToFiles = async (options, fileIds) => {
+    try {
+      await vdpg._waitForGoogleApiLoad(2000);
+      if (typeof fileIds === 'string') fileIds = [fileIds];
+      return await vdpg._grantAccessWithPicker(options, fileIds);
+    } catch (e) {
+      console.error(e);
+      return fileIds;
+    }
+  };
+
+  vdpg._grantAccessWithPicker = (options, fileIds) => {
+    return new Promise((resolve, reject) => {
+      function pickerCallback(response) {
+        if (response.action === google.picker.Action.PICKED) {
+          let selectedFileIds = new Set(response.docs.map(doc => doc.id));
+          resolve(fileIds.filter(id => !selectedFileIds.has(id)));
+        } else if (response.action === google.picker.Action.CANCEL) {
+          resolve(fileIds);
+        } else if (response.action === google.picker.Action.FAILED) {
+          reject(new Error("Picker failed."));
+        }
+      }
+
+      const docsView = new google.picker.DocsView()
+        .setMode(google.picker.DocsViewMode.LIST)
+        .setFileIds(fileIds.join(','));
+
+      const builder = new google.picker.PickerBuilder()
+        .addView(docsView)
+        .enableFeature(google.picker.Feature.NAV_HIDDEN)
+        .hideTitleBar()
+        .setSize(document.body.clientWidth - 20, document.body.clientHeight - 200)
+        .setOAuthToken('<?= ScriptApp.getOAuthToken() ?>')
+        .setCallback(pickerCallback)
+        .setOrigin(google.script.host.origin)
+        .setAppId(options.appId);
+      builder.build().setVisible(true);
+    });
+  };
+
+</script>
+<script type="text/javascript" src="https://apis.google.com/js/api.js?onload=vdpg_onApiLoad"></script>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <!-- Use the default Google Apps Script Add-ons stylesheet -->
+  <link href="https://ssl.gstatic.com/docs/script/css/add-ons1.css" rel="stylesheet">
+  <style>
+    html, body {
+      height: 100%; 
+      margin: 0;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+  </style>
+</head>
+
+<body>
+<div id="loading">
+  Loading in progress, please wait...
+</div>
+</body>
+
+<?!= includeComponent() ?>
+
+<script type="application/javascript">
+  async function main() {
+    const options = <?!= JSON.stringify(data.options) ?>;
+    let remainingFileIds = await vdpg.grantAccessToFiles(options, <?!= JSON.stringify(data.fileIds) ?>);
+    <? if (data.continuationFn) { ?>
+      document.getElementById('loading').textContent = 'Work in progress, please wait...';
+      google.script.run
+        .withSuccessHandler(() => {
+          google.script.host.close();
+        })
+        [<?= data.continuationFn ?>](remainingFileIds, <?!= data.continuationFnArguments.map(arg => JSON.stringify(arg)).join(', ') ?>);
+    <? } else { ?>
+      google.script.host.close();
+    <? } ?>
+  }
+  main();
+</script>
+
+</body>
+</html>

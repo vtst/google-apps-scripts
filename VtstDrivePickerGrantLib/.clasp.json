@@ -1,0 +1,20 @@
+{
+  "scriptId": "1Igag6GkWHNos3HX-Rqb4zOMK0k4zqj-wvSwhOp_-rjBkScSsXJU0nn0h",
+  "rootDir": "",
+  "scriptExtensions": [
+    ".gs",
+    ".js"
+  ],
+  "htmlExtensions": [
+    ".html"
+  ],
+  "jsonExtensions": [
+    ".json"
+  ],
+  "filePushOrder": [
+    "Code.gs",
+    "Component.html",
+    "Dialog.html"
+  ],
+  "skipSubdirectories": true
+}
