@@ -27,9 +27,24 @@ This library requires certain OAuth scopes to function correctly. If you manuall
 * `https://www.googleapis.com/auth/script.scriptapp`
 * `https://www.googleapis.com/auth/userinfo.email`
 
-Additionally, the library requires access to at least one of these scopes, depending on whether your add-on is for Google Docs or Google Sheets:
+To setup the trigger, the library requires access to at least one of these scopes, depending on whether your add-on is for Google Docs or Google Sheets:
 * `https://www.googleapis.com/auth/documents`
+* `https://www.googleapis.com/auth/documents.currentonly`
 * `https://www.googleapis.com/auth/spreadsheets`
+* `https://www.googleapis.com/auth/spreadsheets.currentonly`
+
+Finally, you must ensure that your manifest includes any additional OAuth scopes required by your trigger code. If your trigger needs to access or modify a document or spreadsheet, you have a few possible approaches:
+
+* **Full Document or Spreadsheet Access:**  
+  Use the scope `https://www.googleapis.com/auth/documents` (for Docs) or `https://www.googleapis.com/auth/spreadsheets` (for Sheets). This allows your trigger code to directly open files using `DocumentApp.openById()` or `SpreadsheetApp.openById()`. This is the simplest approach for development and internal use. However, when publishing your add-on to the Google Workspace Marketplace, these broad scopes may be rejected in favor of tighter permission policies, so this method is generally only suitable for private or unlisted add-ons.
+
+* **Granular File Access via Drive Picker:**  
+  For public add-ons, a recommended alternative is to use the `https://www.googleapis.com/auth/drive.file` scope in combination with the [Google Picker](https://developers.google.com/workspace/drive/api/guides/picker). This allows users to explicitly grant your add-on access only to selected files. Note that with this approach you cannot use `DocumentApp` or `SpreadsheetApp` to open the files. Instead, you should use the advanced [Docs](https://developers.google.com/apps-script/advanced/docs) and [Sheets](https://developers.google.com/apps-script/advanced/sheets) services, which work with files authorized by the user via the Drive Picker.
+
+* **Fetching File Content Directly:**  
+  If your use-case only requires reading the file content (for example, reading a document as plain text or a spreadsheet as a CSV), you can use the [`UrlFetchApp`](https://developers.google.com/apps-script/reference/url-fetch/url-fetch-app) service to download the file directly—again, provided the user has granted access via the Drive Picker.
+
+Choose the approach that best aligns with your add-on's publishing goals and security requirements.
 
 ### Usage Example
 
