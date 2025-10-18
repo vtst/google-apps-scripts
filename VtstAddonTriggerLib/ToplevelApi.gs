@@ -7,8 +7,8 @@ function setConfig(config) {
   _CONFIG = {... _DEFAULT_CONFIG, ... config};
 }
 
-function _getTriggerManager(docId) {
-  return new TriggerManager(_CONFIG, docId);
+function _getTriggerManager(docId, docUrl) {
+  return new TriggerManager(_CONFIG, docId, docUrl);
 }
 
 /**
@@ -17,7 +17,7 @@ Get the configuration for the currently active document.
  */
 function getConfigForActiveDocument() {
   // Using null as document ID because it's not used by getConfigForActiveDocument, though it's extremely hacky.
-  return _getTriggerManager(null).getConfigForActiveDocument();
+  return _getTriggerManager().getConfigForActiveDocument();
 }
 
 /**
@@ -26,7 +26,7 @@ Get the configuration for the currently active spreadsheet.
  */
 function getConfigForActiveSpreadsheet() {
   // Using null as document ID because it's not used by getConfigForActiveDocument, though it's extremely hacky.
-  return _getTriggerManager(null).getConfigForActiveDocument();
+  return _getTriggerManager().getConfigForActiveDocument();
 }
 
 /**
@@ -34,7 +34,8 @@ Set the configuration for the currently active document.
 @param {Config} config
  */
 function setConfigForActiveDocument(config) {
-  return _getTriggerManager(DocumentApp.getActiveDocument().getId()).setConfigForActiveDocument(config);
+  const doc = DocumentApp.getActiveDocument()
+  return _getTriggerManager(doc.getId(), doc.getUrl()).setConfigForActiveDocument(config);
 }
 
 /**
@@ -42,5 +43,6 @@ Set the configuration for the currently active spreadsheet.
 @param {Config} config
  */
 function setConfigForActiveSpreadsheet(config) {
-  return _getTriggerManager(SpreadsheetApp.getActiveSpreadsheet().getId()).setConfigForActiveDocument(config);
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  return _getTriggerManager(spreadsheet.getId(), spreadsheet.getUrl()).setConfigForActiveDocument(config);
 }

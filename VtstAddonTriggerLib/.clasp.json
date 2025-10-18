@@ -14,7 +14,9 @@
   "filePushOrder": [
     "Utils.gs",
     "Class.gs",
-    "ToplevelApi.gs"
+    "ToplevelApi.gs",
+    "TriggersDialog.gs",
+    "TriggersDialogUI.html"
   ],
   "skipSubdirectories": false
 }

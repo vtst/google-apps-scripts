@@ -148,6 +148,19 @@ If an error occurs during the execution of a trigger for a particular document o
 * The error will be recorded in the error log.
 * Trigger execution will continue for the remaining documents or spreadsheets.
 
+### Dialog for showing triggers
+
+The library provides a dialog to show a list of the documents on which the trigger is installed by the current user. This dialog is especially useful to clean up the configuration of deleted documents.
+
+Here is a code snippet for displaying the dialog:
+
+```javascript
+function vtstAddonTriggerLibCallback() { return VtstAddonTriggerLib.callback.apply(globalThis, arguments); }
+function showTriggerConfigDialog() {
+  VtstAddonTriggerLib.showTriggersDialog('Your custom title (optional)');
+}
+```
+
 ## Limitations
 
 Please note the following limitations of this approach:

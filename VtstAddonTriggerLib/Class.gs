@@ -6,9 +6,10 @@ const _DEFAULT_CONFIG = {
 
 class TriggerManager {
 
-  constructor(config, docId) {
+  constructor(config, docId, docUrl) {
     this.config = {... _DEFAULT_CONFIG, ... config};
     this.docId = docId;
+    this.docUrl = docUrl;
   }
 
   clean() {
@@ -21,13 +22,14 @@ class TriggerManager {
        documents: {
          <docId>: {
            lastRun: number,
+           url: string,
            config: DocumentConfig (see below)
          }
        } 
      }
   */
 
-  _getUserConfig() {
+  getUserConfig() {
     try {
       return JSON.parse(PropertiesService.getUserProperties().getProperty(this.config.user_property_key)) || {documents: {}};
     } catch {
@@ -35,7 +37,7 @@ class TriggerManager {
     }
   }
 
-  _setUserConfig(config) {
+  setUserConfig(config) {
     PropertiesService.getUserProperties().setProperty(this.config.user_property_key, JSON.stringify(config));
   }
 
@@ -79,13 +81,14 @@ class TriggerManager {
         '. They need to remove the trigger before you can setup one.';
     }
     if (config.scheduling) config.userEmail = userEmail; else delete config.userEmail;
+    config.url = this.docUrl;
     PropertiesService.getDocumentProperties().setProperty(this.config.document_property_key, JSON.stringify(config));
     // Update the user config and the trigger configuration.
     if (!_deepEquals(currentConfig.scheduling, config.scheduling)) {
-      const userConfig = this._getUserConfig();
+      const userConfig = this.getUserConfig();
       if (config.scheduling) userConfig.documents[this.docId] = config; else delete userConfig.documents[this.docId];
-      this._setUserConfig(userConfig);
-      this._configureTrigger(userConfig);
+      this.setUserConfig(userConfig);
+      this.configureTrigger(userConfig);
     }
   }
 
@@ -119,7 +122,7 @@ class TriggerManager {
 
   // Create the script trigger from the userConfig.  If userConfig.documents is empty, the current trigger is just
   // deleted.  If there are one or several entries in userConfig.documents, a single time-based trigger is configured.
-  _configureTrigger(userConfig) {
+  configureTrigger(userConfig) {
     const docEntries = Object.values(userConfig.documents);
     const periodInHours = this._getPeriodInHours(docEntries);
     // Delete existing triggers.
@@ -142,7 +145,7 @@ class TriggerManager {
 
   // Trigger function. Calls the handler function fn on the configured documents as needed.
   runTrigger(fn, opt_context) {
-    const userConfig = this._getUserConfig();
+    const userConfig = this.getUserConfig();
     const now = new Date;
     for (let docId in userConfig.documents) {
       let docEntry = userConfig.documents[docId];
@@ -159,6 +162,6 @@ class TriggerManager {
         Logger.log('Trigger failed for doc ' + docId + ': ' + e);
       }
     }
-    this._setUserConfig(userConfig);
+    this.setUserConfig(userConfig);
   }  
 }
