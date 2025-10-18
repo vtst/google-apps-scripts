@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link href="https://ssl.gstatic.com/docs/script/css/add-ons1.css" rel="stylesheet">
+    <style type="text/css">
+      body {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .content {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      .hint {
+        color: #444;
+        border-bottom: solid 1px #ccc;
+        padding-bottom: 12px;
+      }
+
+      .table {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        overflow-y: auto;
+        margin-bottom: 18px;
+      }
+
+      .row {
+        display: flex;
+        flex-direction: row;
+        padding: 3px 0;
+        border-bottom: solid 1px #ccc;
+      }
+
+      .header-row {
+        font-weight: bold;
+      }
+
+      .td-1 {
+        width: 30em;
+      }
+
+      .td-2 {
+        flex-grow: 1;
+      }
+
+      .td-3 {
+        width: 80px;
+        text-align: right;
+      }
+    </style>
+  </head>
+  <body>
+      <div class="content">
+        <div class="hint">
+          This dialog lists all the add-on triggers installed by you (<?= data.activeUserEmail ?>) in
+          Google documents or spreadsheets.  If you want to change or remove some trigger, it is recommended to do it
+          from each document to keep consistency.  However, you can use this dialog to remove the trigger for
+          deleted documents.
+        </div>
+        <div class="table">
+          <div class="row header-row">
+            <div class="td-1">Doc ID</div>
+            <div class="td-2">Scheduling</div>
+            <div class="td-3">Force remove</div>
+          </div>
+          <? for (const docId in data.userConfig.documents) {
+               const doc = data.userConfig.documents[docId]; ?>
+            <div class="row">
+              <div class="td-1">
+                <a href="<?= doc.url || `https://drive.google.com/file/d/${docId}/view`?>" target="_blank"><?= docId ?></a>
+              </div>
+              <div class="td-2">
+                <?= _schedulingToString(doc.scheduling) ?>
+              </div>
+              <div class="td-3">
+                <input type="checkbox" name="delete-<?= docId ?>" onchange="onDeleteChange()"/>
+              </div>
+            </div>
+          <? } ?>
+        </table>
+      </div>
+      <div class="footer">
+        <button class="action" id="remove-selection" onclick="removeSelection()">Remove selection</button>
+        <button onclick="removeAll()">Remove all</button>
+        <button onclick="google.script.host.close()">Close</button>
+      </div>
+  </body>
+
+  <script type="application/javascript">
+    function disableAll() {
+      Array.from(document.querySelectorAll('input, button')).forEach(element => element.disabled = true);
+    }
+
+    function onDeleteChange() {
+      document.getElementById('remove-selection').disabled =
+        Array.from(document.querySelectorAll('input[type=checkbox]')).every(cb => (!cb.checked));
+    }
+    onDeleteChange();
+
+    function removeAll() {
+      disableAll();
+      google.script.run
+        .withSuccessHandler(google.script.host.close)
+        .withFailureHandler(google.script.host.close)
+        .vtstAddonTriggerLibCallback('removeAll');
+    }
+
+    function removeSelection() {
+      disableAll();
+      const selectedDocuments = Array.from(document.querySelectorAll('input[type=checkbox]'))
+        .filter(cb => cb.checked)
+        .map(cb => cb.name.substr(cb.name.indexOf('-') + 1));
+      google.script.run
+        .withSuccessHandler(google.script.host.close)
+        .withFailureHandler(google.script.host.close)
+        .vtstAddonTriggerLibCallback('removeSelection', selectedDocuments);
+    }
+  </script>
+</html>
