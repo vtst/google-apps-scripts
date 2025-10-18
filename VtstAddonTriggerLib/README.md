@@ -39,7 +39,8 @@ Finally, you must ensure that your manifest includes any additional OAuth scopes
   Use the scope `https://www.googleapis.com/auth/documents` (for Docs) or `https://www.googleapis.com/auth/spreadsheets` (for Sheets). This allows your trigger code to directly open files using `DocumentApp.openById()` or `SpreadsheetApp.openById()`. This is the simplest approach for development and internal use. However, when publishing your add-on to the Google Workspace Marketplace, these broad scopes may be rejected in favor of tighter permission policies, so this method is generally only suitable for private or unlisted add-ons.
 
 * **Granular File Access via Drive Picker:**  
-  For public add-ons, a recommended alternative is to use the `https://www.googleapis.com/auth/drive.file` scope in combination with the [Google Picker](https://developers.google.com/workspace/drive/api/guides/picker). This allows users to explicitly grant your add-on access only to selected files. Note that with this approach you cannot use `DocumentApp` or `SpreadsheetApp` to open the files. Instead, you should use the advanced [Docs](https://developers.google.com/apps-script/advanced/docs) and [Sheets](https://developers.google.com/apps-script/advanced/sheets) services, which work with files authorized by the user via the Drive Picker.
+  For public add-ons, a recommended alternative is to use the `https://www.googleapis.com/auth/drive.file` scope in combination with the [Google Picker](https://developers.google.com/workspace/drive/api/guides/picker). This allows users to explicitly grant your add-on access only to selected files. Note that with this approach you cannot use `DocumentApp` or `SpreadsheetApp` to open the files. Instead, you should use the advanced [Docs](https://developers.google.com/apps-script/advanced/docs) and [Sheets](https://developers.google.com/apps-script/advanced/sheets) services, which work with files authorized by the user via the Drive Picker. You may consider using [VtstDrivePickerGrantLib](../VtstDrivePickerGrantLib/) for 
+  this purpose.
 
 * **Fetching File Content Directly:**  
   If your use-case only requires reading the file content (for example, reading a document as plain text or a spreadsheet as a CSV), you can use the [`UrlFetchApp`](https://developers.google.com/apps-script/reference/url-fetch/url-fetch-app) service to download the file directly—again, provided the user has granted access via the Drive Picker.
@@ -150,9 +151,9 @@ If an error occurs during the execution of a trigger for a particular document o
 
 ### Dialog for showing triggers
 
-The library provides a dialog to show a list of the documents on which the trigger is installed by the current user. This dialog is especially useful to clean up the configuration of deleted documents.
+The library includes a built-in dialog that displays all documents where the current user has installed triggers. This dialog makes it easy to review and remove trigger configurations, including those associated with deleted or inaccessible documents.
 
-Here is a code snippet for displaying the dialog:
+To display this dialog in your add-on, use the following code:
 
 ```javascript
 function vtstAddonTriggerLibCallback() { return VtstAddonTriggerLib.callback.apply(globalThis, arguments); }
