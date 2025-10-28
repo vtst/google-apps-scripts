@@ -32,7 +32,7 @@ function grantFileAccess(global, options, fileIds, continuationFn) {
       options: options || {}
     };
     const title = options.title || ' ';
-    const html = template.evaluate().setTitle(title).setWidth(options.width || 600).setHeight(options.height || 400);
+    const html = template.evaluate().setTitle(title).setWidth(options.width || 600).setHeight(options.height || 500);
     _getUi().showModalDialog(html, title);
   } else {
     global[continuationFn].apply(null, [[], ...continuationFnArguments]);

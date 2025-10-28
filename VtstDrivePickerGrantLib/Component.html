@@ -68,7 +68,7 @@
         .addView(docsView)
         .enableFeature(google.picker.Feature.NAV_HIDDEN)
         .hideTitleBar()
-        .setSize(document.body.clientWidth - 20, document.body.clientHeight - 200)
+        .setSize(document.body.clientWidth - 20, document.body.clientHeight - 20)
         .setOAuthToken('<?= ScriptApp.getOAuthToken() ?>')
         .setCallback(pickerCallback)
         .setOrigin(google.script.host.origin)
