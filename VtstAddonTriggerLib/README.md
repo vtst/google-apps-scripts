@@ -88,7 +88,8 @@ if (config && config.userEmail !== Session.getActiveUser().getEmail()) {
 
 #### Writing the Trigger Function
 
-Your trigger handler function should be named `managedAddonTriggerFunction` by default. (You can customize this name using the [global configuration options](#global-configuration-options) if desired.) This function is automatically invoked by the Addon Trigger Library and receives two arguments:
+Your trigger handler function should be named `managedAddonTriggerFunction` by default. (You can customize this name using the [global configuration options](#global-configuration-options) if desired.) It shall call `VtstAddonTriggerLib.runTrigger` with a callback
+function taking two arguments:
 
 * `docId`: The ID of the Google Document or Spreadsheet the trigger is running for.
 * `settings`: The custom settings object you previously passed to `AddonTriggerLib.setConfigForActiveDocument` (or `setConfigForActiveSpreadsheet`).
@@ -96,9 +97,10 @@ Your trigger handler function should be named `managedAddonTriggerFunction` by d
 A typical trigger function looks like:
 
 ```javascript
-function managedAddonTriggerFunction(docId, settings) {
-  const doc = DocumentApp.openById(docId);
-  // Your trigger logic goes here
+function managedAddonTriggerFunction() {
+  VtstAddonTriggerLib.runTrigger((docId, settings) => {
+    // Your trigger logic goes here
+  );
 }
 ```
 

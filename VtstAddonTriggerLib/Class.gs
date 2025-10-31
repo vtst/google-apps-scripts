@@ -156,7 +156,7 @@ class TriggerManager {
       if (docEntry.lastRun && (now.getTime() - docEntry.lastRun) < ((period * 3600 - 1000) * 1000)) continue;
       try {
         // Decide if we should run the trigger.
-        fn.call(opt_context, docId, docEntry.config.settings);
+        fn.call(opt_context, docId, docEntry.settings);
         docEntry.lastRun = now.getTime();
       } catch (e) {
         Logger.log('Trigger failed for doc ' + docId + ': ' + e);

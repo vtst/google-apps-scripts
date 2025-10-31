@@ -46,3 +46,7 @@ function setConfigForActiveSpreadsheet(config) {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   return _getTriggerManager(spreadsheet.getId(), spreadsheet.getUrl()).setConfigForActiveDocument(config);
 }
+
+function runTrigger(fn, opt_context) {
+  return _getTriggerManager().runTrigger(fn, opt_context);
+}
