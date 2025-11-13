@@ -12,7 +12,7 @@ function _getUi() {
 
 function hasAccessToFile(fileId) {
   try {
-    Drive.Files.get(fileId, { fields: 'id' });
+    Drive.Files.get(fileId, { fields: 'id', supportsAllDrives: true });
     return true;
   } catch {
     return false;
