@@ -20,7 +20,7 @@ function hasAccessToFile(fileId) {
 }
 
 function grantFileAccess(global, options, fileIds, continuationFn) {
-  const continuationFnArguments = Array.prototype.slice.call(arguments, 3);
+  const continuationFnArguments = Array.prototype.slice.call(arguments, 4);
   if (typeof fileIds === 'string') fieleIds = [fileIds];
   const filteredFileIds = fileIds.filter(id => !hasAccessToFile(id));
   if (filteredFileIds.length > 0) {
