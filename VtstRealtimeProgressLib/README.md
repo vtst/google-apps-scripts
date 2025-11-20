@@ -146,7 +146,8 @@ You can customize the library’s behavior by passing an `options` object, eithe
 | `successTitle`   | string  | "Successfully completed"                        | Title displayed upon successful completion.                                                  |
 | `successMessage` | string  | "Click on the 'Close' button below to continue."| Message shown on success (if the backend function does not return a string).                 |
 | `closeOnSuccess` | boolean | false                                           | If `true`, the dialog will automatically close on success.                                   |
-| `callbackName`   | string  | "vtstRealtimeProgressLibCallback"               | Name of the callback function (typically left as default; rarely needs to be changed).       |
+| `errorTraceLinkLabel`   | string  | "vtstRealtimeProgressLibCallback"               | Label of the link that allows copying a full error report. Set to an empty string to hide the link.       |
+| `callbackName`   | string  | "Copy full error report"               | Name of the callback function (typically left as default; rarely needs to be changed).       |
 
 These options let you tailor the progress UI and operation flow to suit your needs.
 

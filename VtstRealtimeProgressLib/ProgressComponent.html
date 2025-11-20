@@ -21,6 +21,18 @@
   .vrpl-error .vrpl-title {
     color: #ea4335;
   }
+
+  .vrpl-trace-link {
+    display: none;
+    text-decoration: none;
+    font-size: 80%;
+    color: #888;
+    margin-top: 6px;
+  }
+
+  .vrpl-trace-link:hover {
+    text-decoration: underline;
+  }
 </style>
 
 <div style="display: none;">
@@ -105,7 +117,7 @@
   </div>
 </div>
 
-<script type="application/javascript">
+<script type="text/javascript">
 
   let vrpl = {};
 
@@ -117,7 +129,8 @@
     successTitle: 'Successfully completed',
     successMessage: 'Click on the "Close" button below to continue.',
     closeOnSuccess: false,
-    callbackName: 'vtstRealtimeProgressLibCallback'
+    callbackName: 'vtstRealtimeProgressLibCallback',
+    errorTraceLinkLabel: 'Copy full error report'
   };
 
   vrpl._Runner = class {
@@ -156,6 +169,7 @@
     #iconElement;
     #titleElement;
     #messageElement;
+    #traceLink;
 
     #insertInDom() {
       function createElement(tagName, className) {
@@ -168,6 +182,8 @@
       const rightContainer = container.appendChild(createElement('div', 'vrpl-right-container'));
       this.#titleElement = rightContainer.appendChild(createElement('div', 'vrpl-title'));
       this.#messageElement = rightContainer.appendChild(createElement('div', 'vrpl-message'));
+      this.#traceLink = rightContainer.appendChild(createElement('a', 'vrpl-trace-link'));
+      this.#traceLink.textContent = this.#options.errorTraceLinkLabel;
       this.#element.replaceChildren(container);
     }
 
@@ -216,6 +232,15 @@
       }
     };
 
+    _setupTraceLink(error) {
+      if (!this.#options.errorTraceLinkLabel) return;
+      this.#traceLink.style.display = 'block';
+      this.#traceLink.addEventListener('click', (event) => {
+        event.stopPropagation();
+        navigator.clipboard.writeText(error.message + '\n\n' + error.stack);
+      });
+    }
+
     // Entry point
 
     _run(functionName) {
@@ -227,10 +252,11 @@
       const runner = this;
       return function() {
         const functionArguments = Array.from(arguments);
-        google.script.run.withFailureHandler(message => {
+        google.script.run.withFailureHandler(error => {
           runner.#stopPolling();
-          runner.update(runner.#options.errorTitle, message, 'error');
-          if (runner.#failureHandler) runner.#failureHandler.call(null, message, runner);
+          runner.update(runner.#options.errorTitle, error.message, 'error');
+          this._setupTraceLink(error);
+          if (runner.#failureHandler) runner.#failureHandler.call(null, error, runner);
         }).withSuccessHandler(result => {
           runner.#stopPolling();
           runner.update(runner.#options.successTitle, runner.#options.successMessage, 'success');
