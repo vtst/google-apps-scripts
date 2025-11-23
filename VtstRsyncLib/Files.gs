@@ -10,7 +10,6 @@ $M.files.FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
 
 // A wrapper around Drive.Files.list that support paging.
 $M.files.listAllPages = (optionalArgs, opt_pageSize) => {
-  Logger.log(JSON.stringify(optionalArgs, null, 2));
   if (!optionalArgs.pageSize) optionalArgs.pageSize = 1000;
   optionalArgs.pageToken = null;
   optionalArgs.fields = optionalArgs.fields ? 'nextPageToken,' + optionalArgs.fields : 'nextPageToken';
