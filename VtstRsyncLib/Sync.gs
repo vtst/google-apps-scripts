@@ -39,7 +39,7 @@ $M.Syncer = class {
           this._logger.info(`Copying "${diff.sourceId}" (${path}) into "${targetParentId}"`);
           this._driveOperator.copyRec(source, this._directory.getFileById(targetParentId));  // we should have targetParent.
         } else {
-          this._logger.warning(`Could not copy "${diff.sourceId}" (${path}) into "${targetParentId}" because previous renaming/removing failed.`);
+          this._logger.warn(`Could not copy "${diff.sourceId}" (${path}) into "${targetParentId}" because previous renaming/removing failed.`);
         }
       }
     } else if (diff.sourceExists) {
@@ -61,9 +61,9 @@ $M.Syncer = class {
 
 };
 
-$M.diff.syncFolders = (sourceFolderId, targetFolderId, options, opt_directory) => {
+$M.sync.syncFolders = (sourceFolderId, targetFolderId, options, opt_directory) => {
   const directory = opt_directory || newDirectory().addSubTrees([sourceFolderId, targetFolderId]).build();
-  const logger = new $M.logging.ConsoleLogger();
+  const logger = VtstLoggingLib.createLogger({output: 'console', level: options.logging?.level});
   const differ = new $M.Differ(directory);
   const diff = differ.diff(sourceFolderId, targetFolderId);
   const driveOperator = new $M.drive.DriveOperator(directory, new $M.drive.MockDriveApi(logger), logger, true);
