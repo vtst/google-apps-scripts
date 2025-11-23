@@ -28,7 +28,7 @@ $M.Syncer = class {
       if (diff.sourceIsFolder && diff.targetIsFolder) {
         this._applyDiffRecOnFolders(diff, path);
       } else {
-        if (this._options.rename) {
+        if (this._options.rename && (diff.sourceIsFolder || diff.targetIsFolder)) {
           this._logger.info(`Renaming "${diff.targetId}" (${path})`);
           var targetIsFree = this._driveOperator.rename(target, this._getNewName(source.name));
         } else {
@@ -61,8 +61,8 @@ $M.Syncer = class {
 
 };
 
-$M.diff.syncFolders = (sourceFolderId, targetFolderId, options) => {
-  const directory = newDirectory().addSubTrees([sourceFolderId, targetFolderId]).build();
+$M.diff.syncFolders = (sourceFolderId, targetFolderId, options, opt_directory) => {
+  const directory = opt_directory || newDirectory().addSubTrees([sourceFolderId, targetFolderId]).build();
   const logger = new $M.logging.ConsoleLogger();
   const differ = new $M.Differ(directory);
   const diff = differ.diff(sourceFolderId, targetFolderId);
