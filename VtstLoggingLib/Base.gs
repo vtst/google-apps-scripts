@@ -38,6 +38,8 @@ class VoidLogger {
   warning(message) { this.log(LogLevel.WARNING, message); }
   error(message) { this.log(LogLevel.ERROR, message); }
 
+  flush() {}
+
 };
 
 class ConsoleLogger extends VoidLogger {
