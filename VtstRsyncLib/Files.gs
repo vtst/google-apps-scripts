@@ -8,6 +8,8 @@ $M.files = {};
 
 $M.files.FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
 
+$M.files.isFolder = (file) => (file.mimeType === $M.files.FOLDER_MIME_TYPE);
+
 // A wrapper around Drive.Files.list that support paging.
 $M.files.listAllPages = (optionalArgs, opt_pageSize) => {
   if (!optionalArgs.pageSize) optionalArgs.pageSize = 1000;
@@ -105,7 +107,8 @@ $M.DirectoryBuilder = class {
     // Add the root which is not returned by Files.list.
     const root = Drive.Files.get('root', { fields: this._fields });
     this._pushFile(root);
-    return root.id;
+    this._filesById['root'] = root;
+    return this;
   }
 
   // Add all files from a shared drive to the directory.
@@ -120,13 +123,14 @@ $M.DirectoryBuilder = class {
     }));
     // Add the root.
     this._pushFile($M.files.getSharedDriveRoot(driveId));
+    return this;
   }
 
   addSubTrees(fileIds) {
     // 'ID_1' in parents or 'ID_2' in parents or 'ID_3' in parents
     const queryBuilder = new $M.QueryBuilder([], "' in parents or '");
     const pushFile = (file) => {
-      if (this._pushFile(file) && file.mimeType === $M.files.FOLDER_MIME_TYPE) queryBuilder.push(file.id)
+      if (this._pushFile(file) && $M.files.isFolder(file)) queryBuilder.push(file.id)
     }
     // Add the initial files passed as argument.
     for (const fileId of fileIds) {
@@ -148,9 +152,10 @@ $M.DirectoryBuilder = class {
         supportsAllDrives: true
       });
       for (const file of files) {
-        if (this._pushFile(file) && file.mimeType === $M.files.FOLDER_MIME_TYPE) queryBuilder.push(file.id);
+        if (this._pushFile(file) && $M.files.isFolder(file)) queryBuilder.push(file.id);
       }
     }
+    return this;
   }
 
 };
@@ -205,12 +210,12 @@ $M.Directory = class {
   }
 
   printSubTree(rootFile) {
-    const buffer = [];
+    const lines = [];
     this.forEachInSubTree(rootFile, (file, {depth}) => {
-      buffer.push('  '.repeat(depth) + file.name);
+      lines.push('  '.repeat(depth) + file.name);
       return {depth: depth + 1};
     }, {depth: 0});
-    return buffer.join('\n');
+    return lines.join('\n');
   }
 
 };
