@@ -14,6 +14,7 @@
   "filePushOrder": [
     "Utils.gs",
     "Files.gs",
+    "Diff.gs",
     "Sync.gs",
     "Api.gs"],
   "skipSubdirectories": true
