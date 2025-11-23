@@ -125,17 +125,20 @@ $M.DirectoryBuilder = class {
 
   addSubTrees(fileIds) {
     // 'ID_1' in parents or 'ID_2' in parents or 'ID_3' in parents
-    const queryBuilder = new $M.QueryBuilder(fileIds, "' in parents or '");
+    const queryBuilder = new $M.QueryBuilder([], "' in parents or '");
     const pushFile = (file) => {
       if (this._pushFile(file) && file.mimeType === $M.files.FOLDER_MIME_TYPE) queryBuilder.push(file.id)
     }
     // Add the initial files passed as argument.
     for (const fileId of fileIds) {
-      // TODO: What happens if the file does not exist.
-      pushFile(Drive.Files.get(fileId, {
-        fields: this._fields,
-        supportsAllDrives: true
-      }));
+      try {
+        pushFile(Drive.Files.get(fileId, {
+          fields: this._fields,
+          supportsAllDrives: true
+        }));
+      } catch (error) {
+        if (error.details?.code !== 404) throw error;
+      }
     }
     // Add files recursively.
     while (queryBuilder.isNotEmpty()) {
