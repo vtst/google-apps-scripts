@@ -7,13 +7,27 @@ class _Reporter {
     this._pushIntervalInMs = pushIntervalInMs || 1000;
     this._lastMessageTimestampInMs = 0;
     this._lastMessage = null;
+    this._section = null;
     this._propertiesService = PropertiesService.getUserProperties();
   }
 
-  send(message) {
+  _shouldSend(now, message, opt_section) {
+    if (message === this._lastMessage) {
+      return false;
+    } else if (opt_section === true) {
+      return true;
+    } else if (opt_section && opt_section !== this._section) {
+      this._section = opt_section;
+      return true;
+    } else {
+      return now - this._lastMessageTimestampInMs > this._pushIntervalInMs;
+    }
+  }
+
+  send(message, opt_section) {
     if (this._pushIntervalInMs <= 0) return;
     const now = Date.now();
-    if (message !== this._lastMessage && now - this._lastMessageTimestampInMs > this._pushIntervalInMs) {
+    if (this._shouldSend(now, message, opt_section)) {
       this._lastMessage = message;
       this._lastMessageTimestampInMs = now;
       this._propertiesService.setProperty(this._key, message);
@@ -25,3 +39,13 @@ class _Reporter {
   }
 
 }
+
+class _VoidReporter {
+  send(message, opt_isMajor) {}
+};
+
+class _ConsoleReporter {
+  send(message, opt_isMajor) {
+    Logger.log(`[progress] ${message}`);
+  }
+};

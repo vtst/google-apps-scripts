@@ -48,11 +48,17 @@ function myLongRunningFunction(reporter, param1, param2, ..., paramN) {
   // Perform some operations here.
   reporter.send("Processing data...");
   // More computation...
-  reporter.send("Almost done...");
+  reporter.send("Almost done...", true);
   // ...
   return "Operation completed successfully";
 }
 ```
+
+The `send` method takes two arguments:
+* A string message to be displayed to the user.
+* An optional argument that can help control whether the message can be skipped for performance reasons. This argument can be either:
+  * A boolean.  If it is `true`, the message will never be skipped,
+  * A string. If it is different than the previously received string, the message will never be skipped.
 
 To initiate your long-running job, call `VtstRealtimeProgressLib.runWithProgressDialog` and provide:
 * An options object. For basic use, this can simply be `{}`. See the “Options” section below for details on available options.
@@ -156,6 +162,13 @@ These options let you tailor the progress UI and operation flow to suit your nee
 You can see a full example using the library in [this Google Document](https://docs.google.com/document/d/1fL8-I1uMZNYYOO3BtbjdWYqjfAKYe3EaIbvfRyPWYnU/edit?tab=t.0).
 The code of the Apps Script project attached to this document is available in the example subdirectory of this repository.
 
+## Mock reporters
+
+The library provides two functions that can be used to create a mock reporter object:
+* `newVoidReporter()`: A reporter that does nothing.
+* `newConsoleReporter()`: A reporter that logs messages to the Apps Script console.
+
+These can be used when the same function can be run with or without a progress UI.
 
 ## Known Limitations
 

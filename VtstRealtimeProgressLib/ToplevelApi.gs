@@ -40,3 +40,6 @@ function runWithProgressDialog(options, functionName/*, functionArguments*/) {
   const html = template.evaluate().setWidth(400).setHeight(150);
   _getUi().showModalDialog(html, options.title || 'Please wait...');
 }
+
+function newVoidReporter() { return new _VoidReporter }
+function newConsoleReporter() { return new _ConsoleReporter }
