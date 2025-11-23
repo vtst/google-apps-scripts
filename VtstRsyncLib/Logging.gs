@@ -7,6 +7,15 @@ $M.logging.Level = {
   ERROR: 2
 };
 
+$M.logging.levelToString = (level) => {
+  switch (level) {
+    case $M.logging.Level.INFO: return 'INFO';
+    case $M.logging.Level.WARNING: return 'WARNING';
+    case $M.logging.Level.ERROR: return 'ERROR';
+    default: return 'UNKNOWN';
+  }
+}
+
 $M.logging.VoidLogger = class {
 
   constructor(opt_level) {
@@ -24,5 +33,5 @@ $M.logging.VoidLogger = class {
 };
 
 $M.logging.ConsoleLogger = class extends $M.logging.VoidLogger {
-  _log(level, message) { console.log(message); }
+  _log(level, message) { console.log(`[${$M.logging.levelToString(level)}] ${message}`); }
 };
