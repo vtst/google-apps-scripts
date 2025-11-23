@@ -199,38 +199,28 @@ $M.Directory = class {
     return this._files.filter(file => !file.parents || file.parents.length === 0);
   }
 
-  forEachInSubTree(rootFile, fn, context, opt_obj) {
+  forEachDownwards(rootFile, fn, context, opt_obj) {
     const contextForChildren = fn.call(opt_obj, rootFile, context);
     if (rootFile.children) {
       for (const childId of rootFile.children) {
         const child = this.getFileById(childId);
-        if (child) this.forEachInSubTree(child, fn, contextForChildren, opt_obj);
+        if (child) this.forEachDownwards(child, fn, contextForChildren, opt_obj);
       }
     }
+  }
+
+  forEachUpwards(rootFile, fn, opt_obj) {
+    const childrenResults = rootFile.children ? rootFile.children.map(child => (this.forEachUpwards(child, fn, opt_obj))) : [];
+    return fn.call(opt_obj, rootFile, childrenResults);
   }
 
   printSubTree(rootFile) {
     const lines = [];
-    this.forEachInSubTree(rootFile, (file, {depth}) => {
+    this.forEachDownwards(rootFile, (file, {depth}) => {
       lines.push('  '.repeat(depth) + file.name);
       return {depth: depth + 1};
     }, {depth: 0});
     return lines.join('\n');
-  }
-
-  getSubTreeFiles(rootFile) {
-    const files = [];
-    const iter = (file) => {
-      files.push(file);
-      if (file.children) {
-        for (const childId of file.children) {
-          const child = this._filesById[childId];
-          if (child) iter(child);
-        }
-      }
-    }
-    iter(rootFile);
-    return files;
   }
 
 };

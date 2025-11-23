@@ -124,28 +124,24 @@ $M.drive.DriveOperator = class {
     }
   }
 
-  removeRec(file) {
-    const subTreeFiles = this._directory.getSubTreeFiles(file);
-    $M.utils.forEachRev(subTreeFiles, this.remove.bind(this));
+  removeRec(root) {
+    this._directory.forEachUpwards(root, (file, childResults) => {
+      if (!childResults.every(x => x)) return false;
+      this.remove(file);
+      return true;
+    });
   }
 
-  copyRec(root, targetFolder) {
-    const subTreeFiles = this._directory.getSubTreeFiles(root);
-    const folderSourceIdToTarget = {};
-    for (const file of subTreeFiles) {
-      const parentTarget = file.id === root.id ? targetFolder : folderSourceIdToTarget[file.parents[0]];
-      if (parentTarget) {
+  copyRec(root, rootParentTargetFolder) {
+    this._directory.forEachDownwards(root, (file, targetParentFolder) => {
+      if (targetParentFolder) {
         if ($M.files.isFolder(file)) {
-          const newFolderId = this.createFolder(parentTarget, file.name);
-          folderSourceIdToTarget[file.id] = newFolderId;  // What happens if null?
+          return this.createFolder(targetParentFolder, file.name);
         } else {
-          this.copyFile(file, parentTarget);
+          this.copyFile(file, targetParentFolder);
         }
-      } else {
-        const message = `Cannot copy "{file}" because target folder does not exist.`;
-        this._reportError(new Error(message), message)
       }
-    }
+    }, rootParentTargetFolder);
   }
 
 };
