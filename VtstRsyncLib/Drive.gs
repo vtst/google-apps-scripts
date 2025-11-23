@@ -1,6 +1,35 @@
 var $M = $M || {};
 $M.drive = {};
 
+// ********************************************************************************
+// Drive API
+
+$M.drive.MockDriveApi = class {
+
+  constructor(logger) {
+    this._logger = logger;
+  }
+
+
+  remove(file) {
+    this._logger.info(`File removal: file ID ${file.id} set to trashed: true.`);
+  }
+
+  copyFile(file, targetParent) {
+    this._logger.info(`Copy of file ${file.id} (modified time ${file.modifiedTime}) to parent ${targetParent.id}.`);
+  }
+
+  createFolder(parent, name) {
+    this._logger.info(`Creation of folder "${name}" in parent ${parent.id}.`);
+    return {id: `MOCKED_FOLDER_ID_${parent.id}_${name}`};
+  }
+
+  rename(file, newName) {
+    this._logger.info(`Rename of file ID ${file.id} to "${newName}".`);
+  }
+
+};
+
 $M.drive.AdvancedDriveServiceApi = class {
 
   remove(file) {
@@ -33,7 +62,7 @@ $M.drive.AdvancedDriveServiceApi = class {
         mimeType: 'application/vnd.google-apps.folder',
         parents: [{ id: parent.id }]
       }, { supportsAllDrives: true, fields: 'id' }
-    ).id;
+    );
   }
 
   rename(file, newName) {
@@ -45,6 +74,9 @@ $M.drive.AdvancedDriveServiceApi = class {
   }
 
 };
+
+// ********************************************************************************
+// Drive Operator
 
 $M.drive.DriveOperator = class {
 
@@ -84,11 +116,11 @@ $M.drive.DriveOperator = class {
     }
   }
 
-  createFolder(parentId, name) { 
+  createFolder(parent, name) { 
     try {
-      return this._driveApi.createFolder(parentId, name);
+      return this._driveApi.createFolder(parent, name);
     } catch (error) {
-      this._reportError(error, `Renaming "${file.id}" as "${newName}" failed.`);
+      this._reportError(error, `Renaming "${parent.id}" as "${name}" failed.`);
     }
   }
 
@@ -99,15 +131,15 @@ $M.drive.DriveOperator = class {
 
   copyRec(root, targetFolder) {
     const subTreeFiles = this._directory.getSubTreeFiles(root);
-    const folderSourceIdToTargetId = {};
+    const folderSourceIdToTarget = {};
     for (const file of subTreeFiles) {
-      const parentTargetId = file.id === root.id ? targetFolder.id : folderSourceIdToTargetId[file.parents[0]];
-      if (parentTargetId) {
+      const parentTarget = file.id === root.id ? targetFolder : folderSourceIdToTarget[file.parents[0]];
+      if (parentTarget) {
         if ($M.files.isFolder(file)) {
-          const newFolderId = this.createFolder(parentTargetId, file.name);
-          folderSourceIdToTargetId[file.id] = newFolderId;  // What happens if null?
+          const newFolderId = this.createFolder(parentTarget, file.name);
+          folderSourceIdToTarget[file.id] = newFolderId;  // What happens if null?
         } else {
-          this.copyFile(file, parentTargetId);
+          this.copyFile(file, parentTarget);
         }
       } else {
         const message = `Cannot copy "{file}" because target folder does not exist.`;
