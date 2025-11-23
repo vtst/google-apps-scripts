@@ -13,6 +13,8 @@
   ],
   "filePushOrder": [
     "Utils.gs",
+    "Logging.gs",
+    "DriveApi.gs",
     "Files.gs",
     "Diff.gs",
     "Sync.gs",
