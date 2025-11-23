@@ -218,4 +218,19 @@ $M.Directory = class {
     return lines.join('\n');
   }
 
+  getSubTreeFiles(rootFile) {
+    const files = [];
+    const iter = (file) => {
+      files.push(file);
+      if (file.children) {
+        for (const childId of file.children) {
+          const child = this._filesById[childId];
+          if (child) iter(child);
+        }
+      }
+    }
+    iter(rootFile);
+    return files;
+  }
+
 };

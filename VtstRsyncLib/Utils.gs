@@ -32,6 +32,12 @@ $M.utils.mapFilter = (arr, fn, opt_context) => {
   return result;
 };
 
+$M.utils.forEachRev = (arr, fn, opt_context) => {
+  for (let i = arr.length - 1; i >= 0; --i) {
+    fn.call(opt_context, arr[i]);
+  }
+};
+
 $M.utils.forEachValueKey = (obj, fn, opt_context) => {
   for (const key in obj) {
     fn.call(opt_context, obj[key], key);
