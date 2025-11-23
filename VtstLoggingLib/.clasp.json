@@ -1,0 +1,18 @@
+{
+  "scriptId": "1xPfojBL_kDhtj6DCmWpLPLEUOJRqWPRXph9Ni0owjjSH_4Ii1SyS1zRt",
+  "rootDir": "",
+  "scriptExtensions": [
+    ".gs",
+    ".js"
+  ],
+  "htmlExtensions": [
+    ".html"
+  ],
+  "jsonExtensions": [
+    ".json"
+  ],
+  "filePushOrder": [
+    "Base.gs",
+    "Api.gs"],
+  "skipSubdirectories": true
+}
