@@ -30,13 +30,17 @@ $M.Syncer = class {
       } else {
         if (this._options.rename) {
           this._logger.info(`Renaming "${diff.targetId}" (${path})`);
-          this._driveOperator.rename(source, this._getNewName(source));
+          var targetIsFree = this._driveOperator.rename(target, this._getNewName(source.name));
         } else {
           this._logger.info(`Removing "${diff.targetId}" (${path})`);
-          this._driveOperator.removeRec(target);
+          var targetIsFree = this._driveOperator.removeRec(target);
         }
-        this._logger.info(`Copying "${diff.sourceId}" (${path}) into "${targetParentId}"`);
-        this._driveOperator.copyRec(source, this._directory.getFileById(targetParentId));  // we should have targetParent.
+        if (targetIsFree) {
+          this._logger.info(`Copying "${diff.sourceId}" (${path}) into "${targetParentId}"`);
+          this._driveOperator.copyRec(source, this._directory.getFileById(targetParentId));  // we should have targetParent.
+        } else {
+          this._logger.warning(`Could not copy "${diff.sourceId}" (${path}) into "${targetParentId}" because previous renaming/removing failed.`);
+        }
       }
     } else if (diff.sourceExists) {
       this._logger.info(`Copying "${diff.sourceId}" (${path}) into "${targetParentId}"`);
@@ -65,4 +69,9 @@ $M.diff.syncFolders = (sourceFolderId, targetFolderId, options) => {
   const driveOperator = new $M.drive.DriveOperator(directory, new $M.drive.MockDriveApi(logger), logger, true);
   const syncer = new $M.Syncer(driveOperator, logger, directory, options);
   syncer.applyDiff(diff)
+  if (driveOperator.numberOfErrors === 0) {
+    logger.info('Sync successful.');
+  } else {
+    logger.error(`${driveOperator.numberOfErrors} error(s) occurred during sync.`);
+  }
 };
