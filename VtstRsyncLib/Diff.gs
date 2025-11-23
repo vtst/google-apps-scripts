@@ -47,7 +47,7 @@ $M.diff.getLabelForDiff = (diff) => {
       return 'added';
     }
   } else {
-    return 'deleted'
+    return 'removed'
   }
 };
 
