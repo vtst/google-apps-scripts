@@ -35,7 +35,7 @@ class VoidLogger {
     if (level >= this.level) this._log(level, message);
   }
   info(message) { this.log(LogLevel.INFO, message); }
-  warning(message) { this.log(LogLevel.WARNING, message); }
+  warn(message) { this.log(LogLevel.WARNING, message); }
   error(message) { this.log(LogLevel.ERROR, message); }
 
   flush() {}
