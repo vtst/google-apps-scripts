@@ -10,7 +10,6 @@ $M.drive.MockDriveApi = class {
     this._logger = logger;
   }
 
-
   remove(file) {
     this._logger.info(`File removal: file ID ${file.id} set to trashed: true.`);
   }
@@ -35,14 +34,15 @@ $M.drive.AdvancedDriveServiceApi = class {
   remove(file) {
     Drive.Files.update(
       { trashed: true },
-      file.id, 
+      file.id,
+      null,
       { supportsAllDrives: true, fields: 'id' }
     );
   }
 
   copyFile(file, targetParent) {
     const newFile = Drive.Files.copy(
-      { parents: [{ id: targetParent.id }] }, 
+      { parents: [targetParent.id], name: file.name }, 
       file.id, 
       { supportsAllDrives: true, fields: 'id' }
     );
@@ -57,19 +57,20 @@ $M.drive.AdvancedDriveServiceApi = class {
   }
 
   createFolder(parent, name) {
-    return Drive.Files.insert({
-        title: name,
+    return Drive.Files.create({
+        name: name,
         mimeType: 'application/vnd.google-apps.folder',
-        parents: [{ id: parent.id }]
-      }, { supportsAllDrives: true, fields: 'id' }
+        parents: [parent.id]
+      }, null, { supportsAllDrives: true, fields: 'id' }
     );
   }
 
   rename(file, newName) {
     Drive.Files.update(
-      { title: newName }, 
-      file.id, 
-      { supportsAllDrives: true, fileds: 'id' }
+      { name: newName }, 
+      file.id,
+      null,
+      { supportsAllDrives: true, fields: 'id' }
     );
   }
 
@@ -114,7 +115,7 @@ $M.drive.DriveOperator = class {
 
   rename(file, newName) { 
     try {
-      this._driveApi.rename(file.id, newName);
+      this._driveApi.rename(file, newName);
       return true;
     } catch (error) {
       this._reportError(error, `Renaming "${file.id}" as "${newName}" failed.`);

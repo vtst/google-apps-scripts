@@ -2,8 +2,8 @@ var $M = $M || {};
 $M.diff = {};
 
 $M.diff.fileEquals = (file1, file2) => {
-  return file1.size === file2.size &&
-    file1.modifiedTime === file2.modifiedTime &&
+   // file1.size === file2.size &&  Don't compare sizes as they don't seem to be preserved.
+   return file1.modifiedTime === file2.modifiedTime &&
     file1.mimeType === file2.mimeType;
 };
 

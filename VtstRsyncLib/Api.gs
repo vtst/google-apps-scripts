@@ -9,3 +9,11 @@ function newDirectory() {
 function syncFolders(sourceFolderId, targetFolderId, options, opt_directory) {
   $M.sync.syncFolders(sourceFolderId, targetFolderId, options, opt_directory);
 }
+
+function multipleSyncFolders(syncPairs, options) {
+  $M.sync.multipleSyncFolders(syncPairs, options);
+}
+
+function driveFilesListAllPages(optionalArgs, opt_pageSize) {
+  return $M.files.listAllPages(optionalArgs, opt_pageSize);
+}

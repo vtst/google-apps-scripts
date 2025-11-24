@@ -27,7 +27,7 @@ $M.Syncer = class {
     if (diff.sourceExists && diff.targetExists) {
       if (diff.sourceIsFolder && diff.targetIsFolder) {
         this._applyDiffRecOnFolders(diff, path);
-      } else {
+      } else if (!diff.same) {
         if (this._options.rename && (diff.sourceIsFolder || diff.targetIsFolder)) {
           this._logger.info(`Renaming "${diff.targetId}" (${path})`);
           var targetIsFree = this._driveOperator.rename(target, this._getNewName(source.name));
@@ -66,7 +66,7 @@ $M.sync.syncFolders = (sourceFolderId, targetFolderId, options, opt_directory) =
   const logger = VtstLoggingLib.createLogger({output: 'console', level: options.logging?.level});
   const differ = new $M.Differ(directory);
   const diff = differ.diff(sourceFolderId, targetFolderId);
-  const driveOperator = new $M.drive.DriveOperator(directory, new $M.drive.MockDriveApi(logger), logger, true);
+  const driveOperator = new $M.drive.DriveOperator(directory, new $M.drive.AdvancedDriveServiceApi(), logger, true);
   const syncer = new $M.Syncer(driveOperator, logger, directory, options);
   syncer.applyDiff(diff)
   if (driveOperator.numberOfErrors === 0) {
@@ -74,4 +74,22 @@ $M.sync.syncFolders = (sourceFolderId, targetFolderId, options, opt_directory) =
   } else {
     logger.error(`${driveOperator.numberOfErrors} error(s) occurred during sync.`);
   }
+};
+
+$M.sync.multipleSyncFolders = (syncPairs, options) => {
+  const folderIds = syncPairs.map(syncPair => ([syncPair.sourceFolderId, syncPair.targetFolderId])).flat();
+  const directory = newDirectory().addSubTrees(folderIds).build();
+  const logger = VtstLoggingLib.createLogger({output: 'console', level: options.logging?.level});
+  const differ = new $M.Differ(directory);
+  const driveOperator = new $M.drive.DriveOperator(directory, new $M.drive.AdvancedDriveServiceApi(), logger, true);
+  const syncer = new $M.Syncer(driveOperator, logger, directory, options);
+  for (const syncPair of syncPairs) {
+    const diff = differ.diff(syncPair.sourceFolderId, syncPair.targetFolderId);
+    syncer.applyDiff(diff);
+  }
+  if (driveOperator.numberOfErrors === 0) {
+    logger.info('Sync successful.');
+  } else {
+    logger.error(`${driveOperator.numberOfErrors} error(s) occurred during sync.`);
+  } 
 };

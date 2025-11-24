@@ -172,13 +172,15 @@ $M.Directory = class {
 
   _buildHierarchy(files) {
     for (const file of this._files) {
+      if ($M.files.isFolder(file)) {
+        file.children = [];
+        file.childrenByName = {};
+      }
+    }
+    for (const file of this._files) {
       file.parents = $M.utils.mapFilter(file.parents || [], parentId => {
         const parent = this._filesById[parentId];
         if (parent) {
-          if (!(parent.children)) {
-            parent.children = [];
-            parent.childrenByName = {};
-          }
           parent.children.push(file.id);
           parent.childrenByName[file.name] = file.id;
           return parentId;
