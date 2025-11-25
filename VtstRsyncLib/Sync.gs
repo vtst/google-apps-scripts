@@ -74,19 +74,23 @@ $M.sync.multipleSyncFolders = (syncPairs, options, opt_directory) => {
   const folderIds = syncPairs.map(syncPair => ([syncPair.sourceFolderId, syncPair.targetFolderId])).flat();
   const directory = opt_directory || newDirectory().addSubTrees(folderIds).build();
   const logger = VtstLoggingLib.createLogger({output: 'console', level: options.logging?.level});
-  const differ = new $M.Differ(directory);
-  const driveOperator = new $M.drive.DriveOperator(directory, new $M.drive.AdvancedDriveServiceApi(), logger, true);
-  const syncer = new $M.Syncer(driveOperator, logger, directory, options);
-  for (const syncPair of syncPairs) {
-    const diff = differ.diff(syncPair.sourceFolderId, syncPair.targetFolderId);
-    syncer.applyDiff(diff);
+  try {
+    const differ = new $M.Differ(directory);
+    const driveOperator = new $M.drive.DriveOperator(directory, new $M.drive.AdvancedDriveServiceApi(), logger, true);
+    const syncer = new $M.Syncer(driveOperator, logger, directory, options);
+    for (const syncPair of syncPairs) {
+      const diff = differ.diff(syncPair.sourceFolderId, syncPair.targetFolderId);
+      syncer.applyDiff(diff);
+    }
+    if (driveOperator.numberOfErrors === 0) {
+      logger.info('Sync successful.');
+    } else {
+      const message = `${driveOperator.numberOfErrors} error(s) occurred during sync.`;
+      logger.error(message);
+      if (!options.muteExceptions) throw new Error(message);
+    }
+    return driveOperator.numberOfErrors;
+  } finally {
+    logger.close();
   }
-  if (driveOperator.numberOfErrors === 0) {
-    logger.info('Sync successful.');
-  } else {
-    const message = `${driveOperator.numberOfErrors} error(s) occurred during sync.`;
-    logger.error(message);
-    if (!options.muteExceptions) throw new Error(message);
-  }
-  return driveOperator.numberOfErrors;
 };
