@@ -1,12 +1,15 @@
 var $M = $M || {};
 $M.diff = {};
 
-$M.diff.fileEquals = (file1, file2) => {
-   // file1.size === file2.size &&  Don't compare sizes as they don't seem to be preserved.
-   return file1.modifiedTime === file2.modifiedTime &&
-    file1.mimeType === file2.mimeType;
+// Comparison function to test if a file in source and target are identical
+$M.diff.fileEquals = (sourceFile, targetFile) => {
+   // sourceFile.size === targetFile.size &&  Don't compare sizes as they don't seem to be preserved.
+   return sourceFile.modifiedTime === targetFile.modifiedTime &&
+    sourceFile.mimeType === targetFile.mimeType;
 };
 
+// A Differ is used to compute a diff object to compare two file sub-trees.
+// It has a single method diff doing the job.
 $M.Differ = class {
 
   constructor(directory, opt_fileEquals) {
@@ -17,6 +20,7 @@ $M.Differ = class {
   diff(sourceId, targetId) {
     const source = this._directory.getFileById(sourceId);
     const target = this._directory.getFileById(targetId);
+    if (this._directory.hasLoop(source)) throw new Error(`Found an infinite loop in the descendants of "${source.id}"`);
     const diff = {
       sourceId, targetId,
       sourceExists: source ? true : false,
@@ -51,6 +55,7 @@ $M.diff.getLabelForDiff = (diff) => {
   }
 };
 
+// Pretty print a diff into a string.
 $M.diff.print = (rootDiff) => {
   const lines = [];
   const print_ = (diff, path, depth) => {

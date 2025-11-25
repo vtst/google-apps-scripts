@@ -4,6 +4,7 @@ $M.drive = {};
 // ********************************************************************************
 // Drive API
 
+// A mock Drive API that just logs messages on the actions it would do.
 $M.drive.MockDriveApi = class {
 
   constructor(logger) {
@@ -29,6 +30,7 @@ $M.drive.MockDriveApi = class {
 
 };
 
+// Use the Advanced Drive Service.
 $M.drive.AdvancedDriveServiceApi = class {
 
   remove(file) {
@@ -79,6 +81,10 @@ $M.drive.AdvancedDriveServiceApi = class {
 // ********************************************************************************
 // Drive Operator
 
+// A drive operator orchestrates action with the Drive API to sync two file
+// sub-trees to resolve a diff.
+// Every method returns true if the action succeeded and false otherwise. This
+// allows not performing subsequent changes in case of error.
 $M.drive.DriveOperator = class {
 
   constructor(directory, driveApi, logger) {

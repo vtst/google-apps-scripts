@@ -14,8 +14,8 @@
       {
         "userSymbol": "VtstLoggingLib",
         "libraryId": "1xPfojBL_kDhtj6DCmWpLPLEUOJRqWPRXph9Ni0owjjSH_4Ii1SyS1zRt",
-        "version": "0",
-        "developmentMode": true
+        "version": "3",
+        "developmentMode": false
       }
     ]
   }

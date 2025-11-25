@@ -1,6 +1,8 @@
 var $M = $M || {};
 $M.sync = {};
 
+// This class allows to synchronize a target directory with a source directory by
+// applying a diff (computed by a $M.Differ). 
 $M.Syncer = class {
 
   constructor(driveOperator, logger, directory, options) {
@@ -61,24 +63,16 @@ $M.Syncer = class {
 
 };
 
+
+// Main function to sync two folders.
 $M.sync.syncFolders = (sourceFolderId, targetFolderId, options, opt_directory) => {
-  const directory = opt_directory || newDirectory().addSubTrees([sourceFolderId, targetFolderId]).build();
-  const logger = VtstLoggingLib.createLogger({output: 'console', level: options.logging?.level});
-  const differ = new $M.Differ(directory);
-  const diff = differ.diff(sourceFolderId, targetFolderId);
-  const driveOperator = new $M.drive.DriveOperator(directory, new $M.drive.AdvancedDriveServiceApi(), logger, true);
-  const syncer = new $M.Syncer(driveOperator, logger, directory, options);
-  syncer.applyDiff(diff)
-  if (driveOperator.numberOfErrors === 0) {
-    logger.info('Sync successful.');
-  } else {
-    logger.error(`${driveOperator.numberOfErrors} error(s) occurred during sync.`);
-  }
+  return $M.sync.multipleSyncFolders([{sourceFolderId, targetFolderId}], options, opt_directory);
 };
 
-$M.sync.multipleSyncFolders = (syncPairs, options) => {
+// Main function to sync set of pairs {sourceFolderId, targetFolderId} folders.
+$M.sync.multipleSyncFolders = (syncPairs, options, opt_directory) => {
   const folderIds = syncPairs.map(syncPair => ([syncPair.sourceFolderId, syncPair.targetFolderId])).flat();
-  const directory = newDirectory().addSubTrees(folderIds).build();
+  const directory = opt_directory || newDirectory().addSubTrees(folderIds).build();
   const logger = VtstLoggingLib.createLogger({output: 'console', level: options.logging?.level});
   const differ = new $M.Differ(directory);
   const driveOperator = new $M.drive.DriveOperator(directory, new $M.drive.AdvancedDriveServiceApi(), logger, true);
@@ -90,6 +84,9 @@ $M.sync.multipleSyncFolders = (syncPairs, options) => {
   if (driveOperator.numberOfErrors === 0) {
     logger.info('Sync successful.');
   } else {
-    logger.error(`${driveOperator.numberOfErrors} error(s) occurred during sync.`);
-  } 
+    const message = `${driveOperator.numberOfErrors} error(s) occurred during sync.`;
+    logger.error(message);
+    if (!options.muteExceptions) throw new Error(message);
+  }
+  return driveOperator.numberOfErrors;
 };

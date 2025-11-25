@@ -126,6 +126,7 @@ $M.DirectoryBuilder = class {
     return this;
   }
 
+  // TODO: This will fail if any folder is deleted while the tree is scanned.
   addSubTrees(fileIds) {
     // 'ID_1' in parents or 'ID_2' in parents or 'ID_3' in parents
     const queryBuilder = new $M.QueryBuilder([], "' in parents or '");
@@ -189,18 +190,13 @@ $M.Directory = class {
     }
   }
 
-  getFiles() {
-    return this._files;
-  }
-
   getFileById(id) {
     return this._filesById[id];
   }
-
-  getRoots() {
-    return this._files.filter(file => !file.parents || file.parents.length === 0);
-  }
-
+  
+  // Apply fn on rootFile and every descendant of root file, from top to bottom.
+  // The value returned by fn on a node is passed to its children as the context argument.
+  // Note: This function does not terminate if there is a loop somewhere in the graph.
   forEachDownwards(rootFile, fn, context, opt_obj) {
     const contextForChildren = fn.call(opt_obj, rootFile, context);
     if (rootFile.children) {
@@ -211,11 +207,16 @@ $M.Directory = class {
     }
   }
 
+  // Apply fn on rootFile and every descendant of root file, from bottom to top.
+  // The values returned by fn on the children of a node are passed as argument to fn
+  // as an array when fn is called on the node.
+  // Note: This function does not terminate if there is a loop somewhere in the graph.
   forEachUpwards(rootFile, fn, opt_obj) {
     const childrenResults = rootFile.children ? rootFile.children.map(child => (this.forEachUpwards(child, fn, opt_obj))) : [];
     return fn.call(opt_obj, rootFile, childrenResults);
   }
 
+  // Return a pretty-print of a sub-tree into a string.
   printSubTree(rootFile) {
     const lines = [];
     this.forEachDownwards(rootFile, (file, {depth}) => {
@@ -223,6 +224,23 @@ $M.Directory = class {
       return {depth: depth + 1};
     }, {depth: 0});
     return lines.join('\n');
+  }
+
+  // Return true if there is a loop encountered when walking in the sub-tree of
+  // rootFile descendants.
+  hasLoop(rootFile) {
+    const visitedFiles = new Set;
+    const walk = (file) => {
+      if (!file) return false;
+      if (visitedFiles.has(file.id)) return true;
+      visitedFiles.add(file.id);
+      if (visitedFiles.children) {
+        return visitedFiles.children.some(childId => (walk(this.getFileById(childId))));
+      } else {
+        return false;
+      }
+    }
+    return walk(rootFile);
   }
 
 };
