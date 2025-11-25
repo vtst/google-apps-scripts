@@ -39,6 +39,7 @@ class VoidLogger {
   error(message) { this.log(LogLevel.ERROR, message); }
 
   flush() {}
+  console() {}
 
 };
 
