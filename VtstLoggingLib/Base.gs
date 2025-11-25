@@ -24,25 +24,56 @@ function parseLogLevel(name) {
   }
 }
 
-class VoidLogger {
+// Interface for logger.
+class LoggerInterface {
+
+  // Methods for adding messages to the log with a given level.
+  log(level, ...messages) {}
+  info(...messages) {}
+  warn(...messages) {}
+  error(...messages) {}
+
+  // Some implementations of Logger may have a buffer. The client can call flush() at any time
+  // to suggest to the logger to permanently store its current state. The client must call
+  // close() at the end of processing to tell the logger it's time to store permanently the log.
+  flush() {}
+  close() {}
+
+}
+
+// Abstract class for implementing loggers. Sub-classes need to implement the _log method.
+class BaseLogger extends LoggerInterface {
 
   constructor(options) {
-    this.level = typeof options.level === 'number' || LogLevel.INFO;
+    super();
+    this.level = typeof options.level === 'number' ? options.level : LogLevel.INFO;
   }
 
-  _log(level, message) {};
-  log(level, message) {
-    if (level >= this.level) this._log(level, message);
+  _log(level, ...messages) { throw 'Not implemented'; };
+  log(level, ...messages) {
+    if (level >= this.level) this._log(level, ...messages);
   }
-  info(message) { this.log(LogLevel.INFO, message); }
-  warn(message) { this.log(LogLevel.WARNING, message); }
-  error(message) { this.log(LogLevel.ERROR, message); }
+  info(...messages) { this.log(LogLevel.INFO, ...messages); }
+  warn(...messages) { this.log(LogLevel.WARNING, ...messages); }
+  error(...messages) { this.log(LogLevel.ERROR, ...messages); }
 
   flush() {}
   console() {}
 
 };
 
-class ConsoleLogger extends VoidLogger {
-  _log(level, message) { console.log(`[${logLevelToString(level)}] ${message}`); }
+// Logger doing nothing.
+class VoidLogger extends LoggerInterface {
+
+  constructor(options) {
+    super(options);
+  }
+
+  _log(level, ...messages) {}
+
+}
+
+// Logger outputting to the console.
+class ConsoleLogger extends BaseLogger {
+  _log(level, ...messages) { Logger.log(`[${logLevelToString(level)}] ${messages.join(' ')}`); }
 };
