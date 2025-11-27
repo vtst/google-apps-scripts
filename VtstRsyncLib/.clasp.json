@@ -14,9 +14,10 @@
   "filePushOrder": [
     "Utils.gs",
     "Logging.gs",
+    "DriveApi.gs",
     "Files.gs",
     "Diff.gs",
-    "Drive.gs",
+    "DriveOperator.gs",
     "Sync.gs",
     "Api.gs"],
   "skipSubdirectories": true

@@ -76,7 +76,7 @@ $M.sync.multipleSyncFolders = (syncPairs, options, opt_directory) => {
   const logger = VtstLoggingLib.createLogger({output: 'console', level: options.logging?.level});
   try {
     const differ = new $M.Differ(directory);
-    const driveOperator = new $M.drive.DriveOperator(directory, new $M.drive.AdvancedDriveServiceApi(), logger, true);
+    const driveOperator = new $M.DriveOperator(directory, new $M.drive.AdvancedDriveServiceApi(), logger, true);
     const syncer = new $M.Syncer(driveOperator, logger, directory, options);
     for (const syncPair of syncPairs) {
       const diff = differ.diff(syncPair.sourceFolderId, syncPair.targetFolderId);
