@@ -19,8 +19,8 @@
       {
         "userSymbol": "VtstBatchHttpRequestsLib",
         "libraryId": "1mJZMJxUSMF2goomRwRwvJ7OmQX48PzVHl11s8NgbF6mGgm6zcaSJM65B",
-        "version": "2",
-        "developmentMode": false
+        "version": "0",
+        "developmentMode": true
       }
     ]
   }

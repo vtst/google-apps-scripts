@@ -93,10 +93,6 @@ $M.files.FifoQueue = class {
 
 };
 
-$M.files.DRIVE_API_BATCH_URL = 'https://www.googleapis.com/batch/drive/v3';
-$M.files.MAX_NUMBER_OF_REQUESTS_IN_BATCH = 50;
-$M.files.PAGE_SIZE = 1000;
-
 // A class to build a directory.
 $M.DirectoryBuilder = class {
 
@@ -160,7 +156,6 @@ $M.DirectoryBuilder = class {
       path: '/drive/v3/files/' + fileId,
       params: {
         fields: this._fields,
-        includeItemsFromAllDrives: true,
         supportsAllDrives: true
       },
       fileId: fileId
@@ -190,8 +185,8 @@ $M.DirectoryBuilder = class {
     ]);
     const errors = [];
     while (queue.isNotEmpty()) {
-      const requests = queue.popN($M.files.MAX_NUMBER_OF_REQUESTS_IN_BATCH);
-      const responses = VtstBatchHttpRequestsLib.batchRequestJson($M.files.DRIVE_API_BATCH_URL, requests);
+      const requests = queue.popN($M.drive.MAX_NUMBER_OF_REQUESTS_IN_BATCH);
+      const responses = VtstBatchHttpRequestsLib.batchRequestJson($M.drive.DRIVE_API_BATCH_URL, requests);
       $M.utils.forEach2(requests, responses, (request, response) => {
         if (response.error) {
           errors.push({request, response});

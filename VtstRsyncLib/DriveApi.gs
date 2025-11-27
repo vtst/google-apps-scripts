@@ -74,3 +74,90 @@ $M.drive.AdvancedDriveServiceApi = class {
   }
 
 };
+
+$M.drive.DRIVE_API_BATCH_URL = 'https://www.googleapis.com/batch/drive/v3';
+$M.drive.MAX_NUMBER_OF_REQUESTS_IN_BATCH = 50;
+$M.drive.PAGE_SIZE = 1000;
+
+// Use the batch Drive API.
+$M.drive.BatchDriveApi = class {
+
+  _sendRequest(request) {
+    const responses = VtstBatchHttpRequestsLib.batchRequestJson($M.drive.DRIVE_API_BATCH_URL, [request]);
+    const response = responses[0];
+    if (response.error) throw new Error(response.error.message);
+    return response;
+  }
+
+  remove(file) {
+    this._sendRequest({
+      method: 'PATCH',
+      path: '/drive/v3/files/' + file.id,
+      params: {
+        supportsAllDrives: true,
+        fields: 'id'
+      },
+      body: {
+        name: 'hello'
+      }
+    });
+  }
+
+  copyFile(file, targetParent) {
+    const newFile = this._sendRequest({
+      method: 'POST',
+      path: '/drive/v3/files/' + file.id + '/copy',
+      params: {
+        supportsAllDrives: true,
+        fields: 'id'
+      },
+      body: {
+        parents: [targetParent.id], name: file.name
+      }
+    });
+    this._sendRequest({
+      method: 'PATCH',
+      path: '/drive/v3/files/' + newFile.id,
+      params: {
+        supportsAllDrives: true,
+        fields: 'id',
+        setModifiedDate: true
+      },
+      body: {
+        modifiedTime: file.modifiedTime
+      }
+    });
+    // TODO est-ce que modifiedTime fonctionne comme cela avec la V3?
+  }
+
+  createFolder(parent, name) {
+    return this._sendRequest({
+      method: 'POST',
+      path: '/drive/v3/files',
+      params: {
+        supportsAllDrives: true,
+        fields: 'id'
+      },
+      body: {
+        name: name,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: [parent.id]
+      }
+    });
+  }
+
+  rename(file, newName) {
+    this._sendRequest({
+      method: 'PATCH',
+      path: '/drive/v3/files/' + file.id,
+      params: {
+        supportsAllDrives: true,
+        fields: 'id',
+      },
+      body: {
+        name: newName
+      }
+    });
+  }
+
+};
