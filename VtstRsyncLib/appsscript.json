@@ -14,7 +14,12 @@
       {
         "userSymbol": "VtstLoggingLib",
         "libraryId": "1xPfojBL_kDhtj6DCmWpLPLEUOJRqWPRXph9Ni0owjjSH_4Ii1SyS1zRt",
-        "version": "3",
+        "version": "3"
+      },
+      {
+        "userSymbol": "VtstBatchHttpRequestsLib",
+        "libraryId": "1mJZMJxUSMF2goomRwRwvJ7OmQX48PzVHl11s8NgbF6mGgm6zcaSJM65B",
+        "version": "2",
         "developmentMode": false
       }
     ]

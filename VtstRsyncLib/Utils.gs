@@ -32,6 +32,11 @@ $M.utils.mapFilter = (arr, fn, opt_context) => {
   return result;
 };
 
+$M.utils.forEach2 = (arr1, arr2, fn, opt_context) => {
+  const n = Math.max(arr1.length, arr2.length);
+  for (let i = 0; i < n; ++i) fn.call(opt_context, arr1[i], arr2[i]);
+}
+
 $M.utils.forEachRev = (arr, fn, opt_context) => {
   for (let i = arr.length - 1; i >= 0; --i) {
     fn.call(opt_context, arr[i]);

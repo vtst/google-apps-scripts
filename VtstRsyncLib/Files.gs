@@ -36,6 +36,33 @@ $M.files.getSharedDriveRoot = (driveId) => {
 // ********************************************************************************
 // Directory
 
+$M.files.FifoQueue = class {
+
+  constructor(opt_elements) {
+    this._queue = opt_elements || [];
+    this._index = 0;
+  }
+
+  popN(numberOfElements) {
+    const startIndex = this._index
+    this._index = Math.min(this._index + numberOfElements, this._queue.length);
+    return this._queue.slice(startIndex, this._index);
+  }
+
+  push(element) {
+    this._queue.push(element);
+  }
+
+  isNotEmpty() {
+    return this._index < this._queue.length;
+  }
+
+};
+
+$M.files.DRIVE_API_BATCH_URL = 'https://www.googleapis.com/batch/drive/v3';
+$M.files.MAX_NUMBER_OF_REQUESTS_IN_BATCH = 50;
+$M.files.PAGE_SIZE = 1000;
+
 // An helper class to build with series of IDs.
 $M.QueryBuilder = class {
 
@@ -68,7 +95,7 @@ $M.QueryBuilder = class {
     }
   }
 
-}
+};
 
 // A class to build a directory.
 $M.DirectoryBuilder = class {
@@ -124,6 +151,64 @@ $M.DirectoryBuilder = class {
     // Add the root.
     this._pushFile($M.files.getSharedDriveRoot(driveId));
     return this;
+  }
+
+  _getFileGetRequest(fileId) {
+    return {
+      method: 'GET',
+      path: '/drive/v3/files/' + fileId,
+      params: {
+        fields: this._fields,
+        includeItemsFromAllDrives: true,
+        supportsAllDrives: true
+      },
+      fileId: fileId
+    };
+  }
+
+  _getFileListRequest(fileId, opt_pageToken) {
+    return {
+      method: 'GET',
+      path: '/drive/v3/files',
+      params: {
+        q: `'${fileId}' in parents and trashed = false`,
+        fields: `nextPageToken,files(${this._fields})`,
+        includeItemsFromAllDrives: true,
+        supportsAllDrives: true,
+        pageSize: $M.files.PAGE_SIZE,
+        pageToken: opt_pageToken
+      },
+      fileId: fileId
+    };
+  }
+
+  addSubTreesWithBatchAPI(fileIds) {
+    const queue = new $M.files.FifoQueue([
+      ... fileIds.map(this._getFileGetRequest.bind(this)),
+      ... fileIds.map(fileId => this._getFileListRequest(fileId))
+    ]);
+    const errors = [];
+    while (queue.isNotEmpty()) {
+      const requests = queue.popN($M.files.MAX_NUMBER_OF_REQUESTS_IN_BATCH);
+      const responses = VtstBatchHttpRequestsLib.batchRequestJson($M.files.DRIVE_API_BATCH_URL, requests);
+      $M.utils.forEach2(requests, responses, (request, response) => {
+        if (response.error) {
+          errors.push({request, response});  // TODO: Log?
+        } else {
+          if (response.id) {
+            // files.get response
+            this._pushFile(response);
+          } else if (response.files) {
+            // files.list response
+            if (response.nextPageToken) queue.push(this._getFileListRequest(request.fileId, response.nextPageToken));
+            for (const file of response.files) {
+              if (this._pushFile(file) && $M.files.isFolder(file)) queue.push(this._getFileListRequest(file.id));
+            }
+          }
+        }
+      });
+    }
+    // TODO: Return errors?
   }
 
   // TODO: This will fail if any folder is deleted while the tree is scanned.
