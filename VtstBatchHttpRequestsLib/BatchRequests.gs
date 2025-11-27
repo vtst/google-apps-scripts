@@ -113,16 +113,16 @@ Run a batch API request (multipart/mixed).
 */
 function batchRequest(batchUrl, requests) {
   const oAuthToken = ScriptApp.getOAuthToken();
-  const requestBoundary = 'boundary_' + Utilities.getUuid();
-  const body = requests.map(request => {
+  const requestBoundary = 'BOUNDARY_' + Utilities.getUuid();
+  const body = requests.map((request, index) => {
     const isJsonRequest = request.body && typeof request.body === 'object';
     const requestBody = isJsonRequest ? JSON.stringify(request.body) : request.body;
     const lines = [
       `--${requestBoundary}`,
       'Content-Type: application/http',
+      `content-id: request-${index}`,
       '',
-      `${request.method || 'GET'} ${request.path}${$M.batch.getQueryString(request.params)} HTTP/1.1`,
-      'Authorization: Bearer ' + oAuthToken,
+      `${request.method || 'GET'} ${request.path}${$M.batch.getQueryString(request.params)}`,
       'Content-Length: ' + (requestBody ? requestBody.length : 0)
     ];
     const hasContentTypeHeader = false;
@@ -131,15 +131,17 @@ function batchRequest(batchUrl, requests) {
       lines.push(key + ': ' + value);
     });
     if (isJsonRequest && !hasContentTypeHeader) lines.push('Content-Type: application/json');
-    lines.push('');
     if (requestBody) lines.push('', requestBody);
     return lines;
-  }).flat().join($M.batch.LINE_SEPARATOR) + `${$M.batch.LINE_SEPARATOR}--${requestBoundary}${$M.batch.LINE_SEPARATOR}`;
+  }).flat().join($M.batch.LINE_SEPARATOR) + `${$M.batch.LINE_SEPARATOR}--${requestBoundary}--`;
 
   const response = UrlFetchApp.fetch(batchUrl, {
     method: 'POST',
-    contentType: `multipart/mixed; boundary="${requestBoundary}"`,
-    payload: body,
+    headers: {
+      'Content-Type': `multipart/mixed; boundary=${requestBoundary}`,
+      'Authorization': 'Bearer ' + oAuthToken
+    },
+    payload: Utilities.newBlob(body).getBytes(),
     muteHttpExceptions: true
   });
 
@@ -148,7 +150,6 @@ function batchRequest(batchUrl, requests) {
   }
 
   const responseBoundary = $M.batch.getResponseBoundary(response);
-
   return response.getContentText()
     .split('--' + responseBoundary)
     .slice(1, -1)
