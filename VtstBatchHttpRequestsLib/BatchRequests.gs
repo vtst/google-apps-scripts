@@ -89,9 +89,9 @@ $M.batch.forEachEntry = (entries, fn, opt_obj) => {
 $M.batch.getQueryString = (params) => {
   let chunks = [];
   $M.batch.forEachEntry(params, ([key, value]) => {
-    chunks.push(`${key}=${encodeURIComponent(value)}`);
+    if (value !== undefined) chunks.push(`${key}=${encodeURIComponent(value)}`);
   });
-  return chunks.length > 0 ? '?' + chunks.join('=') : '';
+  return chunks.length > 0 ? '?' + chunks.join('&') : '';
 };
 
 // ********************************************************************************
