@@ -63,7 +63,6 @@ $M.Syncer = class {
 
 };
 
-
 // Main function to sync two folders.
 $M.sync.syncFolders = (sourceFolderId, targetFolderId, options, opt_directory) => {
   return $M.sync.multipleSyncFolders([{sourceFolderId, targetFolderId}], options, opt_directory);
@@ -76,7 +75,8 @@ $M.sync.multipleSyncFolders = (syncPairs, options, opt_directory) => {
   const logger = VtstLoggingLib.createLogger({output: 'console', level: options.logging?.level});
   try {
     const differ = new $M.Differ(directory);
-    const driveOperator = new $M.DriveOperator(directory, new $M.drive.AdvancedDriveServiceApi(), logger, true);
+    const driveApi = options.dryRun ? new $M.drive.MockDriveApi(logger) : new $M.drive.AdvancedDriveServiceApi();
+    const driveOperator = new $M.DriveOperator(directory, driveApi, logger, true);
     const syncer = new $M.Syncer(driveOperator, logger, directory, options);
     for (const syncPair of syncPairs) {
       const diff = differ.diff(syncPair.sourceFolderId, syncPair.targetFolderId);
