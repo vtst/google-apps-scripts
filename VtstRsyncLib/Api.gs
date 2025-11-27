@@ -1,5 +1,5 @@
-function newDirectory() {
-  return new $M.DirectoryBuilder;
+function newDirectory(opt_logger) {
+  return new $M.DirectoryBuilder(opt_logger);
 }
 
 // Options:

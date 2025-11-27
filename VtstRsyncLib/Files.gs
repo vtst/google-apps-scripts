@@ -36,34 +36,7 @@ $M.files.getSharedDriveRoot = (driveId) => {
 // ********************************************************************************
 // Directory
 
-$M.files.FifoQueue = class {
-
-  constructor(opt_elements) {
-    this._queue = opt_elements || [];
-    this._index = 0;
-  }
-
-  popN(numberOfElements) {
-    const startIndex = this._index
-    this._index = Math.min(this._index + numberOfElements, this._queue.length);
-    return this._queue.slice(startIndex, this._index);
-  }
-
-  push(element) {
-    this._queue.push(element);
-  }
-
-  isNotEmpty() {
-    return this._index < this._queue.length;
-  }
-
-};
-
-$M.files.DRIVE_API_BATCH_URL = 'https://www.googleapis.com/batch/drive/v3';
-$M.files.MAX_NUMBER_OF_REQUESTS_IN_BATCH = 50;
-$M.files.PAGE_SIZE = 1000;
-
-// An helper class to build with series of IDs.
+// An helper class to build a Drive query with series of IDs.
 $M.QueryBuilder = class {
 
   constructor(ids, separator, opt_maxQueryLength) {
@@ -97,13 +70,41 @@ $M.QueryBuilder = class {
 
 };
 
+$M.files.FifoQueue = class {
+
+  constructor(opt_elements) {
+    this._queue = opt_elements || [];
+    this._index = 0;
+  }
+
+  popN(numberOfElements) {
+    const startIndex = this._index
+    this._index = Math.min(this._index + numberOfElements, this._queue.length);
+    return this._queue.slice(startIndex, this._index);
+  }
+
+  push(element) {
+    this._queue.push(element);
+  }
+
+  isNotEmpty() {
+    return this._index < this._queue.length;
+  }
+
+};
+
+$M.files.DRIVE_API_BATCH_URL = 'https://www.googleapis.com/batch/drive/v3';
+$M.files.MAX_NUMBER_OF_REQUESTS_IN_BATCH = 50;
+$M.files.PAGE_SIZE = 1000;
+
 // A class to build a directory.
 $M.DirectoryBuilder = class {
 
-  constructor() {
+  constructor(opt_logger) {
     this._files = [];
     this._filesById = {};
     this._fields = 'id,name,parents,size,modifiedTime,mimeType,trashed';
+    this._logger = opt_logger;
   }
 
   build() {
@@ -193,7 +194,8 @@ $M.DirectoryBuilder = class {
       const responses = VtstBatchHttpRequestsLib.batchRequestJson($M.files.DRIVE_API_BATCH_URL, requests);
       $M.utils.forEach2(requests, responses, (request, response) => {
         if (response.error) {
-          errors.push({request, response});  // TODO: Log?
+          errors.push({request, response});
+          if (this._logger) this._logger.error('Drive API error: ' + response.error.message);
         } else {
           if (response.id) {
             // files.get response
@@ -208,10 +210,10 @@ $M.DirectoryBuilder = class {
         }
       });
     }
-    // TODO: Return errors?
+    return errors;
   }
 
-  // TODO: This will fail if any folder is deleted while the tree is scanned.
+  // Note: This fails if any folder is deleted while the tree is scanned.
   addSubTrees(fileIds) {
     // 'ID_1' in parents or 'ID_2' in parents or 'ID_3' in parents
     const queryBuilder = new $M.QueryBuilder([], "' in parents or '");

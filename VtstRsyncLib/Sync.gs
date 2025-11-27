@@ -71,8 +71,8 @@ $M.sync.syncFolders = (sourceFolderId, targetFolderId, options, opt_directory) =
 // Main function to sync set of pairs {sourceFolderId, targetFolderId} folders.
 $M.sync.multipleSyncFolders = (syncPairs, options, opt_directory) => {
   const folderIds = syncPairs.map(syncPair => ([syncPair.sourceFolderId, syncPair.targetFolderId])).flat();
-  const directory = opt_directory || newDirectory().addSubTrees(folderIds).build();
   const logger = VtstLoggingLib.createLogger({output: 'console', level: options.logging?.level});
+  const directory = opt_directory || newDirectory(logger).addSubTrees(folderIds).build();
   try {
     const differ = new $M.Differ(directory);
     const driveApi = options.dryRun ? new $M.drive.MockDriveApi(logger) : new $M.drive.AdvancedDriveServiceApi();
