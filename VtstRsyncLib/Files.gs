@@ -109,17 +109,17 @@ $M.Directory = class {
   _buildHierarchy(files) {
     for (const file of this._files) {
       if ($M.drive.isFolder(file)) {
-        file.children = [];
-        file.childrenByName = {};
+        file._children = [];
+        file._childrenByName = {};
       }
     }
     for (const file of this._files) {
-      file.parents = $M.utils.mapFilter(file.parents || [], parentId => {
+      file._parents = $M.utils.mapFilter(file.parents || [], parentId => {
         const parent = this._filesById[parentId];
         if (parent) {
-          parent.children.push(file.id);
-          parent.childrenByName[file.name] = file.id;
-          return parentId;
+          parent._children.push(file);
+          parent._childrenByName[file.name] = file;
+          return parent;
         }
       });
     }
@@ -129,53 +129,56 @@ $M.Directory = class {
     return this._filesById[id];
   }
   
-  // Apply fn on rootFile and every descendant of root file, from top to bottom.
-  // The value returned by fn on a node is passed to its children as the context argument.
-  // Note: This function does not terminate if there is a loop somewhere in the graph.
-  forEachDownwards(rootFile, fn, context, opt_obj) {
-    const contextForChildren = fn.call(opt_obj, rootFile, context);
-    if (rootFile.children) {
-      for (const childId of rootFile.children) {
-        const child = this.getFileById(childId);
-        if (child) this.forEachDownwards(child, fn, contextForChildren, opt_obj);
-      }
+};
+
+
+// ********************************************************************************
+// File tree functions
+
+// Apply fn on rootFile and every descendant of root file, from top to bottom.
+// The value returned by fn on a node is passed to its children as the context argument.
+// Note: This function does not terminate if there is a loop somewhere in the graph.
+$M.files.forEachDownwards = (rootFile, fn, context, opt_obj) => {
+  const contextForChildren = fn.call(opt_obj, rootFile, context);
+  if (rootFile._children) {
+    for (const child of rootFile._children) {
+      $M.files.forEachDownwards(child, fn, contextForChildren, opt_obj);
     }
   }
+}
 
-  // Apply fn on rootFile and every descendant of root file, from bottom to top.
-  // The values returned by fn on the children of a node are passed as argument to fn
-  // as an array when fn is called on the node.
-  // Note: This function does not terminate if there is a loop somewhere in the graph.
-  forEachUpwards(rootFile, fn, opt_obj) {
-    const childrenResults = rootFile.children ? rootFile.children.map(child => (this.forEachUpwards(child, fn, opt_obj))) : [];
-    return fn.call(opt_obj, rootFile, childrenResults);
-  }
+// Apply fn on rootFile and every descendant of root file, from bottom to top.
+// The values returned by fn on the children of a node are passed as argument to fn
+// as an array when fn is called on the node.
+// Note: This function does not terminate if there is a loop somewhere in the graph.
+$M.files.forEachUpwards = (rootFile, fn, opt_obj) => {
+  const childrenResults = rootFile._children ? rootFile._children.map(child => ($M.files.forEachUpwards(child, fn, opt_obj))) : [];
+  return fn.call(opt_obj, rootFile, childrenResults);
+}
 
-  // Return a pretty-print of a sub-tree into a string.
-  printSubTree(rootFile) {
-    const lines = [];
-    this.forEachDownwards(rootFile, (file, {depth}) => {
-      lines.push('  '.repeat(depth) + file.name);
-      return {depth: depth + 1};
-    }, {depth: 0});
-    return lines.join('\n');
-  }
+// Return a pretty-print of a sub-tree into a string.
+$M.files.printSubTree = (rootFile) => {
+  const lines = [];
+  $M.files.forEachDownwards(rootFile, (file, {depth}) => {
+    lines.push('  '.repeat(depth) + file.name);
+    return {depth: depth + 1};
+  }, {depth: 0});
+  return lines.join('\n');
+}
 
-  // Return true if there is a loop encountered when walking in the sub-tree of
-  // rootFile descendants.
-  hasLoop(rootFile) {
-    const visitedFiles = new Set;
-    const walk = (file) => {
-      if (!file) return false;
-      if (visitedFiles.has(file.id)) return true;
-      visitedFiles.add(file.id);
-      if (visitedFiles.children) {
-        return visitedFiles.children.some(childId => (walk(this.getFileById(childId))));
-      } else {
-        return false;
-      }
+// Return true if there is a loop encountered when walking in the sub-tree of
+// rootFile descendants.
+$M.files.hasLoop = (rootFile) => {
+  const visitedFiles = new Set;
+  const walk = (file) => {
+    if (!file) return false;
+    if (visitedFiles.has(file.id)) return true;
+    visitedFiles.add(file.id);
+    if (visitedFiles._children) {
+      return visitedFiles._children.some(child => (walk(child)));
+    } else {
+      return false;
     }
-    return walk(rootFile);
   }
-
+  return walk(rootFile);
 };

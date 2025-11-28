@@ -12,30 +12,24 @@ $M.diff.fileEquals = (sourceFile, targetFile) => {
 // It has a single method diff doing the job.
 $M.Differ = class {
 
-  constructor(directory, opt_fileEquals) {
-    this._directory = directory;
+  constructor(opt_fileEquals) {
     this._fileEquals = opt_fileEquals || $M.diff.fileEquals;
   }
 
-  diff(sourceId, targetId) {
-    const source = this._directory.getFileById(sourceId);
-    const target = this._directory.getFileById(targetId);
-    if (this._directory.hasLoop(source)) throw new Error(`Found an infinite loop in the descendants of "${source.id}"`);
+  diff(source, target) {
     const diff = {
-      sourceId, targetId,
-      sourceExists: source ? true : false,
-      targetExists: target ? true : false,
+      source, target,
       sourceIsFolder: source && $M.drive.isFolder(source),
       targetIsFolder: target && $M.drive.isFolder(target),
       same: false
     };
-    if (!diff.sourceExists && !diff.targetExists) {
+    if (!source && !target) {
       diff.same = true;
     } else if (diff.sourceIsFolder && diff.targetIsFolder) {
       diff.same = true;
-      const names = $M.utils.uniqueSort([... Object.keys(source.childrenByName), ... Object.keys(target.childrenByName)]);
-      diff.children = $M.utils.makeDictFromKeys(names, name => (this.diff(source.childrenByName[name], target.childrenByName[name])));
-    } else if (!diff.sourceIsFolder && !diff.targetIsFolder && diff.sourceExists && diff.targetExists) {
+      const names = $M.utils.uniqueSort([... Object.keys(source._childrenByName), ... Object.keys(target._childrenByName)]);
+      diff.children = $M.utils.makeDictFromKeys(names, name => (this.diff(source._childrenByName[name], target._childrenByName[name])));
+    } else if (!diff.sourceIsFolder && !diff.targetIsFolder && source && target) {
       diff.same = this._fileEquals(source, target);
     }
     return diff;
@@ -44,8 +38,8 @@ $M.Differ = class {
 };
 
 $M.diff.getLabelForDiff = (diff) => {
-  if (diff.sourceExists) {
-    if (diff.targetExists) {
+  if (diff.source) {
+    if (diff.target) {
       return 'changed';
     } else {
       return 'added';

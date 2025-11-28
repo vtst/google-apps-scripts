@@ -5,17 +5,16 @@ $M.sync = {};
 // applying a diff (computed by a $M.Differ). 
 $M.Syncer = class {
 
-  constructor(driveApi, logger, directory, options) {
+  constructor(driveApi, logger, options) {
     this._driveApi = driveApi;
     this._logger = logger;
-    this._directory = directory;
     this._options = options;
     this._newNameSuffix = '_' + (new Date).toISOString();
   }
 
   _applyDiffRecOnFolders(diff, path) {
     $M.utils.forEachValueKey(diff.children, (childDiff, name) => {
-      this._applyDiffRec(childDiff, path + '/' + name, diff.sourceId, diff.targetId);
+      this._applyDiffRec(childDiff, path + '/' + name, diff.target);
     });
   }
 
@@ -23,56 +22,45 @@ $M.Syncer = class {
     return name + this._newNameSuffix;
   }
 
-  _copySubTree(root, rootParentTargetFolder) {
-    let success = true;
-    this._directory.forEachDownwards(root, (file, targetParentFolder) => {
-      if (targetParentFolder) {
-        if ($M.drive.isFolder(file)) {
-          return this._driveApi.createFolder(targetParentFolder, file.name);
-        } else {
-          this._driveApi.copyFile(file, targetParentFolder);
-        }
-      }
-    }, rootParentTargetFolder);
-    return success;
-  }
-
-  _applyDiffRec(diff, path, sourceParentId, targetParentId) {
-    const source = this._directory.getFileById(diff.sourceId);
-    const target = this._directory.getFileById(diff.targetId);
-    if (diff.sourceExists && diff.targetExists) {
+  _applyDiffRec(diff, path, targetParent) {
+    if (diff.source && diff.target) {
       if (diff.sourceIsFolder && diff.targetIsFolder) {
         this._applyDiffRecOnFolders(diff, path);
       } else if (!diff.same) {
-        if (this._options.rename && (diff.sourceIsFolder || diff.targetIsFolder)) {
-          this._logger.info(`Renaming "${diff.targetId}" (${path})`);
-          this._driveApi.renameFile(target, this._getNewName(source.name));
-        } else {
-          this._logger.info(`Removing "${diff.targetId}" (${path})`);
-          this._driveApi.removeFile(target);
-        }
-        if (targetIsFree) {
-          this._logger.info(`Copying "${diff.sourceId}" (${path}) into "${targetParentId}"`);
-          this._copySubTree(source, this._directory.getFileById(targetParentId));  // we should have targetParent.
-        } else {
-          this._logger.warn(`Could not copy "${diff.sourceId}" (${path}) into "${targetParentId}" because previous renaming/removing failed.`);
-        }
+        this._driveApi.syncNode(
+          diff.target,
+          this._options.rename && (diff.sourceIsFolder || diff.targetIsFolder) ? this._getNewName(diff.source.name) : null,
+          diff.source,
+          targetParent
+        );
       }
-    } else if (diff.sourceExists) {
-      this._logger.info(`Copying "${diff.sourceId}" (${path}) into "${targetParentId}"`);
-      this._copySubTree(source, this._directory.getFileById(targetParentId));  // we should have targetParent.
-    } else if (diff.targetExists) {
+    } else if (diff.source) {
+      this._driveApi.syncNode(
+        null,
+        null,
+        diff.source,
+        targetParent
+      );
+    } else if (diff.target) {
       if (this._options.remove) {
-        this._logger.info(`Removing "${diff.targetId}" (${path})`);
-        this._driveApi.removeFile(target);
+        this._driveApi.syncNode(
+          diff.target,
+          null,
+          null,
+          null
+        );
       }
     }
   }
 
-  applyDiff(diff) {
-    if (!diff.sourceIsFolder) throw new Error('Source is not a folder.');
-    if (!diff.targetIsFolder) throw new Error('Target is not a folder.');
-    this._applyDiffRecOnFolders(diff, '');
+  applyDiffs(diffs) {
+    this._driveApi.syncStart();
+    for (const diff of diffs) {
+      if (!diff.sourceIsFolder) throw new Error('Source is not a folder.');
+      if (!diff.targetIsFolder) throw new Error('Target is not a folder.');
+      this._applyDiffRecOnFolders(diff, '');
+    }
+    return this._driveApi.syncEnd();    
   }
 
 };
@@ -88,22 +76,33 @@ $M.sync.multipleSyncFolders = (syncPairs, options, opt_directory) => {
   const logger = VtstLoggingLib.createLogger({output: 'console', level: options.logging?.level});
   let driveApi = options.useBatchApi ? new $M.drive.BatchDriveApi(logger) : new $M.drive.AdvancedDriveServiceApi(logger);
   const directory = opt_directory || new $M.DirectoryBuilder(driveApi, logger).addSubTrees(folderIds).build();
+  let numberOfErrors = 0;
   try {
-    const differ = new $M.Differ(directory);
+    // Diffing.
+    const differ = new $M.Differ();
+    const diffs = $M.utils.mapFilter(syncPairs, syncPair => {
+      const source = directory.getFileById(syncPair.sourceFolderId);
+      const target = directory.getFileById(syncPair.targetFolderId);
+      if ($M.files.hasLoop(source)) {
+        logger.error(`Found an infinite loop in the descendants of "${source.id}"`);
+        ++numberOfErrors;
+      } else {
+        return differ.diff(source, target);
+      }
+    });
+    // Syncing.
+    const syncer = new $M.Syncer(driveApi, logger, options);
     if (options.dryRun) driveApi = new $M.drive.MockDriveApi(logger);
-    const syncer = new $M.Syncer(driveApi, logger, directory, options);
-    for (const syncPair of syncPairs) {
-      const diff = differ.diff(syncPair.sourceFolderId, syncPair.targetFolderId);
-      syncer.applyDiff(diff);
+    numberOfErrors += syncer.applyDiffs(diffs);
+    // Reporting errors.
+    if (numberOfErrors === 0) {
+      logger.info('Sync successful.');
+    } else {
+      const message = `${numberOfErrors} error(s) occurred during sync.`;
+      logger.error(message);
+      if (!options.muteExceptions) throw new Error(message);
     }
-    // if (driveOperator.numberOfErrors === 0) {
-    //   logger.info('Sync successful.');
-    // } else {
-    //   const message = `${driveOperator.numberOfErrors} error(s) occurred during sync.`;
-    //   logger.error(message);
-    //   if (!options.muteExceptions) throw new Error(message);
-    // }
-    // return driveOperator.numberOfErrors;
+    return numberOfErrors;
   } finally {
     logger.close();
   }

@@ -16,6 +16,7 @@ $M.drive.MockDriveApi = class {
 
   constructor(logger) {
     this._logger = logger;
+    this._numberOfSyncErrors = 0;
   }
 
   getFile(fileId, fields) {
@@ -26,25 +27,29 @@ $M.drive.MockDriveApi = class {
     throw 'Not implemented';
   }
 
-  removeFile(file) {
-    this._logger.info(`File removal: file ID ${file.id} set to trashed: true.`);
-  }
-
-  copyFile(file, targetParent) {
-    this._logger.info(`Copy of file ${file.id} (modified time ${file.modifiedTime}) to parent ${targetParent.id}.`);
-  }
-
-  createFolder(parent, name) {
-    this._logger.info(`Creation of folder "${name}" in parent ${parent.id}.`);
-    return {id: `MOCKED_FOLDER_ID_${parent.id}_${name}`};
-  }
-
-  renameFile(file, newName) {
-    this._logger.info(`Rename of file ID ${file.id} to "${newName}".`);
-  }
-
   walkSubTrees(fileIds, fields, fn, opt_obj) {
-    this._logger.info(`Walk sub-tree of folder IDs ${fileIds.join(', ')}`);
+    throw 'Not implemented';
+  }
+
+  syncStart() {
+    this._numberOfSyncErrors = 0;
+  }
+
+  syncNode(replacedTargetFile, newName, newSourceFileRoot, targetParent) {
+    if (replacedTargetFile) {
+      if (newName) {
+        this._logger.info(`Renaming file "${file.id}" as "${newName}"`);
+      } else {
+        this._logger.info(`Removing file "${file.id}"`);
+      }
+    }
+    if (newSourceFileRoot) {
+      this._logger.info(`Copying file "${newSourceFileRoot.id}" in "${targetParent.id}"`);
+    }
+  }
+
+  syncEnd() {
+    return this._numberOfSyncErrors;
   }
 
 };
@@ -113,49 +118,6 @@ $M.drive.AdvancedDriveServiceApi = class extends $M.drive.MockDriveApi {
     return Drive.Files.list(params);
   }
 
-  removeFile(file) {
-    Drive.Files.update(
-      { trashed: true },
-      file.id,
-      null,
-      { supportsAllDrives: true, fields: 'id' }
-    );
-  }
-
-  copyFile(file, targetParent) {
-    const newFile = Drive.Files.copy(
-      { parents: [targetParent.id], name: file.name }, 
-      file.id, 
-      { supportsAllDrives: true, fields: 'id' }
-    );
-    Drive.Files.update({
-      modifiedTime: file.modifiedTime
-    }, newFile.id,
-    null, {
-      setModifiedDate: true, 
-      supportsAllDrives: true, 
-      fields: 'id'
-    });
-  }
-
-  createFolder(parent, name) {
-    return Drive.Files.create({
-        name: name,
-        mimeType: $M.drive.FOLDER_MIME_TYPE,
-        parents: [parent.id]
-      }, null, { supportsAllDrives: true, fields: 'id' }
-    );
-  }
-
-  renameFile(file, newName) {
-    Drive.Files.update(
-      { name: newName }, 
-      file.id,
-      null,
-      { supportsAllDrives: true, fields: 'id' }
-    );
-  }
-
   // Note: This fails if any folder is deleted while the tree is scanned.
   walkSubTrees(fileIds, fields, fn, opt_obj) {
     // 'ID_1' in parents or 'ID_2' in parents or 'ID_3' in parents
@@ -187,6 +149,95 @@ $M.drive.AdvancedDriveServiceApi = class extends $M.drive.MockDriveApi {
       } catch (e) {
         throw new Error(`Error while listing files of ${queryBuilder.idsOfLastQuery.join(', ')}: ${e.message}`);
       }
+    }
+  }
+
+  _removeFile(file) {
+    Drive.Files.update(
+      { trashed: true },
+      file.id,
+      null,
+      { supportsAllDrives: true, fields: 'id' }
+    );
+  }
+
+  _copyFile(file, targetParent) {
+    const newFile = Drive.Files.copy(
+      { parents: [targetParent.id], name: file.name }, 
+      file.id, 
+      { supportsAllDrives: true, fields: 'id' }
+    );
+    Drive.Files.update({
+      modifiedTime: file.modifiedTime
+    }, newFile.id,
+    null, {
+      setModifiedDate: true, 
+      supportsAllDrives: true, 
+      fields: 'id'
+    });
+  }
+
+  _createFolder(parent, name) {
+    return Drive.Files.create({
+        name: name,
+        mimeType: $M.drive.FOLDER_MIME_TYPE,
+        parents: [parent.id]
+      }, null, { supportsAllDrives: true, fields: 'id' }
+    );
+  }
+
+  _renameFile(file, newName) {
+    Drive.Files.update(
+      { name: newName }, 
+      file.id,
+      null,
+      { supportsAllDrives: true, fields: 'id' }
+    );
+  }
+
+  syncNode(replacedTargetFile, newName, newSourceFileRoot, targetParent) {
+    if (replacedTargetFile) {
+      if (newName) {
+        this._logger.info(`Renaming file "${file.id}" as "${newName}"`);
+        try {
+          this._renameFile(replacedTargetFile, newName);
+        } catch (error) {
+          this._logger.error(`Renaming failed: ${error.message}`);
+          ++this._numberOfSyncErrors;
+          return;
+        }
+      } else {
+        this._logger.info(`Removing file "${file.id}"`);
+        try {
+          this._removeFile(replacedTargetFile);
+        } catch (error) {
+          this._logger.error(`Removal failed: ${error.message}`);
+          ++this._numberOfSyncErrors;
+          return;
+        }
+      }
+    }
+    if (newSourceFileRoot) {
+      this._logger.info(`Recursively copying "${newSourceFileRoot.id}" in "${targetParent.id}"`);
+      $M.files.forEachDownwards(newSourceFileRoot, (file, targetParentFolder) => {
+        if (targetParentFolder) {
+          if ($M.drive.isFolder(file)) {
+            try {
+              return this._createFolder(targetParentFolder, file.name);
+            } catch (error) {
+              this._logger.error(`Creation of folder in "${targetParentFolder.id}" failed: ${error.message}`);
+              ++this._numberOfSyncErrors;
+            }
+          } else {
+            try {
+              this._copyFile(file, targetParentFolder);
+            } catch (error) {
+              this._logger.error(`Copy of "${file.id}" in "${targetParentFolder.id}" failed: ${error.message}`);
+              ++this._numberOfSyncErrors;
+            }
+          }
+        }
+      }, targetParent);
     }
   }
 
