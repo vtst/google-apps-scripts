@@ -7,6 +7,36 @@ $M.drive.FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
 
 $M.drive.isFolder = (file) => (file.mimeType === $M.drive.FOLDER_MIME_TYPE);
 
+// ********************************************************************************
+// Counters
+
+$M.drive.SyncCounters = class {
+
+  constructor() {
+    this.reset();
+  }
+
+  reset() {
+    this.error = 0;
+    this.rename = 0;
+    this.create = 0;
+    this.remove = 0;
+    this.copy = 0;
+  }
+
+  toString() {
+    const fragments = [];
+    function push(count, text) {
+      if (count > 0) fragments.push(`${count} ${text}`);
+    }
+    push(this.error, 'error(s)');
+    push(this.rename, 'file(s) and folder(s) renamed');
+    push(this.create, 'folder(s) created');
+    push(this.remove, 'file(s) and folder(s) removed');
+    push(this.copy, 'file(s) copied');
+    return fragments.join(', ');
+  }
+}
 
 // ********************************************************************************
 // MockDriveApi
@@ -16,7 +46,7 @@ $M.drive.MockDriveApi = class {
 
   constructor(logger) {
     this._logger = logger;
-    this._numberOfSyncErrors = 0;
+    this._syncCounters = new $M.drive.SyncCounters;
   }
 
   getFile(fileId, fields) {
@@ -32,7 +62,7 @@ $M.drive.MockDriveApi = class {
   }
 
   syncStart() {
-    this._numberOfSyncErrors = 0;
+    this._syncCounters.reset();
   }
 
   syncNode(replacedTargetFile, newName, newSourceFileRoot, targetParent) {
@@ -49,7 +79,7 @@ $M.drive.MockDriveApi = class {
   }
 
   syncEnd() {
-    return this._numberOfSyncErrors;
+    return this._syncCounters;
   }
 
 };
@@ -201,18 +231,20 @@ $M.drive.AdvancedDriveServiceApi = class extends $M.drive.MockDriveApi {
         this._logger.info(`Renaming file "${file.id}" as "${newName}"`);
         try {
           this._renameFile(replacedTargetFile, newName);
+          ++this._syncCounters.rename;
         } catch (error) {
           this._logger.error(`Renaming failed: ${error.message}`);
-          ++this._numberOfSyncErrors;
+          ++this._syncCounters.error;
           return;
         }
       } else {
         this._logger.info(`Removing file "${file.id}"`);
         try {
           this._removeFile(replacedTargetFile);
+          ++this._syncCounters.remove;
         } catch (error) {
           this._logger.error(`Removal failed: ${error.message}`);
-          ++this._numberOfSyncErrors;
+          ++this._syncCounters.error;
           return;
         }
       }
@@ -223,17 +255,20 @@ $M.drive.AdvancedDriveServiceApi = class extends $M.drive.MockDriveApi {
         if (targetParentFolder) {
           if ($M.drive.isFolder(file)) {
             try {
-              return this._createFolder(targetParentFolder, file.name);
+              const newFolder = this._createFolder(targetParentFolder, file.name);
+              ++this._syncCounters.create;
+              return newFolder
             } catch (error) {
               this._logger.error(`Creation of folder in "${targetParentFolder.id}" failed: ${error.message}`);
-              ++this._numberOfSyncErrors;
+              ++this._syncCounters.error;
             }
           } else {
             try {
               this._copyFile(file, targetParentFolder);
+              ++this._syncCounters.copy;
             } catch (error) {
               this._logger.error(`Copy of "${file.id}" in "${targetParentFolder.id}" failed: ${error.message}`);
-              ++this._numberOfSyncErrors;
+              ++this._syncCounters.error;
             }
           }
         }
@@ -466,8 +501,10 @@ $M.drive.BatchDriveApi = class extends $M.drive.MockDriveApi {
       if (response.error) {
         const syncNode = this._syncNodes[request._syncNodeIndex];
         this._logger.error(`${syncNode.newName ? "Renaming" : "Removal"} of file "${syncNode.replacedTargetFile.id}" failed: ${error.message}`);
-        ++this._numberOfSyncErrors;
+        ++this._syncCounters.error;
         this._syncNodes[request._syncNodeIndex].step1Failed = true;
+      } else {
+        if (syncNode.newName) ++this._syncCounters.rename; else ++this._syncCounters.remove;
       }
     });
     // Step 2: create folders.
@@ -483,17 +520,20 @@ $M.drive.BatchDriveApi = class extends $M.drive.MockDriveApi {
     this._runAllRequests(createFolderRequests, (request, response) => {
       if (response.error) {
         this._logger.error(`Creation of folder "${request._source.name}" in "${request._targetParent.id}" failed: ${error.message}`);
-        ++this._numberOfSyncErrors;  
+        ++this._syncCounters.error;  
       } else if (request._source._children) {
         // response is the newly created folder.
         request._source._children.forEach(child => { enqueue(child, response); });
+        ++this._syncCounters.create;
       }
     });
     // Step 3: copy files.
     this._runAllRequests(copyFileRequests, (request, response) => {
       if (response.error) {
         this._logger.error(`Copy of "${request._source.id}" in "${request._targetParent.id}" failed: ${error.message}`);
-        ++this._numberOfSyncErrors;
+        ++this._syncCounters.error;
+      } else {
+        ++this._syncCounters.copy;
       }
     });
     return super.syncEnd();

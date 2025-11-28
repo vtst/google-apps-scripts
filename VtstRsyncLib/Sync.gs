@@ -93,16 +93,19 @@ $M.sync.multipleSyncFolders = (syncPairs, options, opt_directory) => {
     // Syncing.
     const syncer = new $M.Syncer(driveApi, logger, options);
     if (options.dryRun) driveApi = new $M.drive.MockDriveApi(logger);
-    numberOfErrors += syncer.applyDiffs(diffs);
+    const counters = syncer.applyDiffs(diffs);
+    counters.error += numberOfErrors;
     // Reporting errors.
-    if (numberOfErrors === 0) {
+    logger.info(counters.toString());
+    if (counters.error === 0) {
       logger.info('Sync successful.');
+      return true;
     } else {
-      const message = `${numberOfErrors} error(s) occurred during sync.`;
+      const message = `${counters.error} error(s) occurred during sync.`;
       logger.error(message);
       if (!options.muteExceptions) throw new Error(message);
+      return false;
     }
-    return numberOfErrors;
   } finally {
     logger.close();
   }
