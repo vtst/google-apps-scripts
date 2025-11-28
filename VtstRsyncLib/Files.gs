@@ -80,11 +80,13 @@ $M.files.FifoQueue = class {
   popN(numberOfElements) {
     const startIndex = this._index
     this._index = Math.min(this._index + numberOfElements, this._queue.length);
+    Logger.log(this._index);
     return this._queue.slice(startIndex, this._index);
   }
 
-  push(element) {
-    this._queue.push(element);
+  pushN(headElements, tailElements) {
+    this._queue.splice(this._index, 0, ... headElements);
+    this._queue.push(... tailElements);
   }
 
   isNotEmpty() {
@@ -187,6 +189,7 @@ $M.DirectoryBuilder = class {
     while (queue.isNotEmpty()) {
       const requests = queue.popN($M.drive.MAX_NUMBER_OF_REQUESTS_IN_BATCH);
       const responses = VtstBatchHttpRequestsLib.batchRequestJson($M.drive.DRIVE_API_BATCH_URL, requests);
+      const nextPageRequests = [], newFolderRequests = [];
       $M.utils.forEach2(requests, responses, (request, response) => {
         if (response.error) {
           errors.push({request, response});
@@ -197,13 +200,14 @@ $M.DirectoryBuilder = class {
             this._pushFile(response);
           } else if (response.files) {
             // files.list response
-            if (response.nextPageToken) queue.push(this._getFileListRequest(request.fileId, response.nextPageToken));
+            if (response.nextPageToken) nextPageRequests.push(this._getFileListRequest(request.fileId, response.nextPageToken));
             for (const file of response.files) {
-              if (this._pushFile(file) && $M.files.isFolder(file)) queue.push(this._getFileListRequest(file.id));
+              if (this._pushFile(file) && $M.files.isFolder(file)) newFolderRequests.push(this._getFileListRequest(file.id));
             }
           }
         }
       });
+      queue.pushN(nextPageRequests, newFolderRequests);
     }
     return errors;
   }
