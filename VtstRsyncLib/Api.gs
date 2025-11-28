@@ -1,7 +1,3 @@
-function newDirectory(opt_logger) {
-  return new $M.DirectoryBuilder(opt_logger);
-}
-
 // Options:
 // - rename: rename files in targets when they are to be replaced by a folder rather than deleting them, and similarly for folders replaced by files.
 // - delete: delete files and folders in target that do not exist in source.

@@ -6,20 +6,6 @@ $M.files = {};
 // ********************************************************************************
 // Utility functions for the Drive API.
 
-// A wrapper around Drive.Files.list that support paging.
-$M.files.listAllPages = (optionalArgs, opt_pageSize) => {
-  if (!optionalArgs.pageSize) optionalArgs.pageSize = $M.drive.PAGE_SIZE;
-  optionalArgs.pageToken = null;
-  optionalArgs.fields = optionalArgs.fields ? 'nextPageToken,' + optionalArgs.fields : 'nextPageToken';
-  const files = [];
-  do {
-    const response = Drive.Files.list(optionalArgs);
-    if (response.files) files.push(... response.files);
-    optionalArgs.pageToken = response.nextPageToken;
-  } while (optionalArgs.pageToken);
-  return files;
-};
-
 $M.files.getSharedDriveRoot = (driveId) => {
   const root = Drive.Drives.get(driveId, {
     fields: 'id,name',
@@ -61,15 +47,28 @@ $M.DirectoryBuilder = class {
     for (const file of files) this._pushFile(file);
   }
 
+  _listAllPages(params, opt_pageSize) {
+    if (!params.pageSize) params.pageSize = $M.drive.PAGE_SIZE;
+    params.pageToken = undefined;
+    params.fields = params.fields ? 'nextPageToken,' + params.fields : 'nextPageToken';
+    const files = [];
+    do {
+      const response = this._driveApi.listFiles(params);
+      if (response.files) files.push(... response.files);
+      params.pageToken = response.nextPageToken;
+    } while (params.pageToken);
+    return files;
+  };
+
   // Add all files from "My Drive" to the directory.
   addMyDrive() {
-    this._pushFiles($M.files.listAllPages({
+    this._pushFiles(this._listAllPages({
       q: 'trashed = false',
       fields: `files(${this._fields})`,
       corpora: 'user'
     }));
     // Add the root which is not returned by Files.list.
-    const root = Drive.Files.get('root', { fields: this._fields });
+    const root = this._driveApi.getFile('root', this._fields);
     this._pushFile(root);
     this._filesById['root'] = root;
     return this;
@@ -77,7 +76,7 @@ $M.DirectoryBuilder = class {
 
   // Add all files from a shared drive to the directory.
   addSharedDrive(driveId) {
-    this._pushFiles($M.files.listAllPages({
+    this._pushFiles(this._listAllPages({
       q: 'trashed = false',
       fields: `files(${this._fields})`,
       corpora: 'drive',

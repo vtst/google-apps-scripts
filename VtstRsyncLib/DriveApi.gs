@@ -18,6 +18,14 @@ $M.drive.MockDriveApi = class {
     this._logger = logger;
   }
 
+  getFile(fileId, fields) {
+    throw 'Not implemented';
+  }
+
+  listFiles(params) {
+    throw 'Not implemented';
+  }
+
   removeFile(file) {
     this._logger.info(`File removal: file ID ${file.id} set to trashed: true.`);
   }
@@ -78,8 +86,30 @@ $M.drive.QueryBuilder = class {
 
 };
 
+$M.drive.listAllPages = (optionalArgs, opt_pageSize) => {
+  if (!optionalArgs.pageSize) optionalArgs.pageSize = $M.drive.PAGE_SIZE;
+  optionalArgs.pageToken = undefined;
+  optionalArgs.fields = optionalArgs.fields ? 'nextPageToken,' + optionalArgs.fields : 'nextPageToken';
+  const files = [];
+  do {
+    const response = Drive.Files.list(optionalArgs);
+    if (response.files) files.push(... response.files);
+    optionalArgs.pageToken = response.nextPageToken;
+  } while (optionalArgs.pageToken);
+  return files;
+};
+
+
 // Use the Advanced Drive Service.
 $M.drive.AdvancedDriveServiceApi = class {
+
+  getFile(fileId, fields) {
+    return Drive.Files.get(fileId, { fields, supportsAllDrives: true });
+  }
+
+  listFiles(params) {
+    return Drive.Files.list(params);
+  }
 
   removeFile(file) {
     Drive.Files.update(
@@ -143,7 +173,7 @@ $M.drive.AdvancedDriveServiceApi = class {
     }
     // Add files recursively.
     while (queryBuilder.isNotEmpty()) {
-      const files = $M.files.listAllPages({
+      const files = $M.drive.listAllPages({
         q: `('${queryBuilder.getQuery()}' in parents) and trashed = false`,
         fields: `files(${fields})`,
         includeItemsFromAllDrives: true,
@@ -196,15 +226,28 @@ $M.drive.BatchDriveApi = class {
     return response;
   }
 
-  getFile(fileId) {
-    return this._sendRequest({
+  getFile(fileId, fields) {
+    const file = this._sendRequest({
       method: 'GET',
       path: '/drive/v3/files/' + fileId,
       params: {
         supportsAllDrives: true,
-        fields: 'id,name,parents,size,modifiedTime,mimeType,trashed'
+        fields
       }
-    })
+    });
+    if (file.error) throw new Error(file.error.message);
+    return file;
+  }
+
+  listFiles(params) {
+    Logger.log(JSON.stringify(params, null, 2));
+    const response = this._sendRequest({
+      method: 'GET',
+      path: '/drive/v3/files',
+      params
+    });
+    if (response.error) throw new Error(response.error.message);
+    return response;
   }
 
   removeFile(file) {
