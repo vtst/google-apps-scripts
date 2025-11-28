@@ -60,6 +60,7 @@ $M.drive.QueryBuilder = class {
     this._separator = separator;
     this._maxQueryLength = opt_maxQueryLength || 8000;
     this._index = 0;
+    this.idsOfLastQuery = [];
   }
 
   isNotEmpty() {
@@ -78,7 +79,8 @@ $M.drive.QueryBuilder = class {
       ++endIndex;
     }
     if (endIndex > this._index) {
-      const query = this._ids.slice(this._index, endIndex).join(this._separator);
+      this.idsOfLastQuery = this._ids.slice(this._index, endIndex);
+      const query = this.idsOfLastQuery.join(this._separator);
       this._index = endIndex;
       return query;
     }
@@ -154,6 +156,7 @@ $M.drive.AdvancedDriveServiceApi = class {
     );
   }
 
+  // Note: This fails if any folder is deleted while the tree is scanned.
   walkSubTrees(fileIds, fields, fn, opt_obj) {
     // 'ID_1' in parents or 'ID_2' in parents or 'ID_3' in parents
     const queryBuilder = new $M.drive.QueryBuilder([], "' in parents or '");
@@ -173,14 +176,22 @@ $M.drive.AdvancedDriveServiceApi = class {
     }
     // Add files recursively.
     while (queryBuilder.isNotEmpty()) {
-      const files = $M.drive.listAllPages({
-        q: `('${queryBuilder.getQuery()}' in parents) and trashed = false`,
-        fields: `files(${fields})`,
-        includeItemsFromAllDrives: true,
-        supportsAllDrives: true
-      });
-      for (const file of files) pushFile(file);
+      try {
+        const files = $M.drive.listAllPages({
+          q: `('${queryBuilder.getQuery()}' in parents) and trashed = false`,
+          fields: `files(${fields})`,
+          includeItemsFromAllDrives: true,
+          supportsAllDrives: true
+        });
+        for (const file of files) pushFile(file);
+      } catch (e) {
+        errors.push({
+          message: e.message,
+          fileIds: queryBuilder.idsOfLastQuery
+        });
+      }
     }
+    return errors;
   }
 
 };
@@ -350,7 +361,10 @@ $M.drive.BatchDriveApi = class {
       const nextPageRequests = [], newFolderRequests = [];
       $M.utils.forEach2(requests, responses, (request, response) => {
         if (response.error) {
-          errors.push({request, response});
+          errors.push({
+            message: response.error.message,
+            fileIds: [request.fileId]
+          });
           // TODO if (this._logger) this._logger.error('Drive API error: ' + response.error.message);
         } else {
           if (response.id) {

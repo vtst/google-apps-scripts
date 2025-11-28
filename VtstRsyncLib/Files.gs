@@ -89,9 +89,16 @@ $M.DirectoryBuilder = class {
     return this;
   }
 
-  // Note: This fails if any folder is deleted while the tree is scanned.
   addSubTrees(fileIds) {
-    this._driveApi.walkSubTrees(fileIds, this._fields, file => !(this._pushFile(file)));
+    const errors = this._driveApi.walkSubTrees(fileIds, this._fields, file => !(this._pushFile(file)));
+    if (errors.length > 0) {
+      if (this._logger) {
+        for (const error of errors) {
+          this._logger.error(`Error while listing files of ${error.fileIds.join(', ')}: ${error.message}`);
+        }
+      }
+      throw new Error(`${errors.length} error(s) occured while listing files. See log for details.`);
+    }
     return this;
   }
 
