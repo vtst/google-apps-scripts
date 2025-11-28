@@ -103,7 +103,7 @@ $M.drive.listAllPages = (optionalArgs, opt_pageSize) => {
 
 
 // Use the Advanced Drive Service.
-$M.drive.AdvancedDriveServiceApi = class {
+$M.drive.AdvancedDriveServiceApi = class extends $M.drive.MockDriveApi {
 
   getFile(fileId, fields) {
     return Drive.Files.get(fileId, { fields, supportsAllDrives: true });
@@ -185,13 +185,9 @@ $M.drive.AdvancedDriveServiceApi = class {
         });
         for (const file of files) pushFile(file);
       } catch (e) {
-        errors.push({
-          message: e.message,
-          fileIds: queryBuilder.idsOfLastQuery
-        });
+        throw new Error(`Error while listing files of ${queryBuilder.idsOfLastQuery.join(', ')}: ${e.message}`);
       }
     }
-    return errors;
   }
 
 };
@@ -228,7 +224,7 @@ $M.drive.FifoQueue = class {
 };
 
 // Use the batch Drive API.
-$M.drive.BatchDriveApi = class {
+$M.drive.BatchDriveApi = class extends $M.drive.MockDriveApi {
 
   _sendRequest(request) {
     const responses = VtstBatchHttpRequestsLib.batchRequestJson($M.drive.DRIVE_API_BATCH_URL, [request]);
@@ -354,18 +350,13 @@ $M.drive.BatchDriveApi = class {
       ... fileIds.map(this._getFileGetRequest.bind(this, fields)),
       ... fileIds.map(fileId => this._getFileListRequest(fields, fileId))
     ]);
-    const errors = [];
     while (queue.isNotEmpty()) {
       const requests = queue.popN($M.drive.MAX_NUMBER_OF_REQUESTS_IN_BATCH);
       const responses = VtstBatchHttpRequestsLib.batchRequestJson($M.drive.DRIVE_API_BATCH_URL, requests);
       const nextPageRequests = [], newFolderRequests = [];
       $M.utils.forEach2(requests, responses, (request, response) => {
         if (response.error) {
-          errors.push({
-            message: response.error.message,
-            fileIds: [request.fileId]
-          });
-          // TODO if (this._logger) this._logger.error('Drive API error: ' + response.error.message);
+          throw new Error(`Error while listing files of ${request.fileId}: ${response.error.message}`);
         } else {
           if (response.id) {
             // files.get response
@@ -381,7 +372,6 @@ $M.drive.BatchDriveApi = class {
       });
       queue.pushN(nextPageRequests, newFolderRequests);
     }
-    return errors;
   }
 
 };

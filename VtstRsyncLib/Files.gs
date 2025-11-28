@@ -21,12 +21,12 @@ $M.files.getSharedDriveRoot = (driveId) => {
 // A class to build a directory.
 $M.DirectoryBuilder = class {
 
-  constructor(driveApi, opt_logger) {
+  constructor(driveApi, logger) {
     this._driveApi = driveApi;
     this._files = [];
     this._filesById = {};
     this._fields = 'id,name,parents,size,modifiedTime,mimeType,trashed';
-    this._logger = opt_logger;
+    this._logger = logger;
   }
 
   build() {
@@ -90,15 +90,7 @@ $M.DirectoryBuilder = class {
   }
 
   addSubTrees(fileIds) {
-    const errors = this._driveApi.walkSubTrees(fileIds, this._fields, file => !(this._pushFile(file)));
-    if (errors.length > 0) {
-      if (this._logger) {
-        for (const error of errors) {
-          this._logger.error(`Error while listing files of ${error.fileIds.join(', ')}: ${error.message}`);
-        }
-      }
-      throw new Error(`${errors.length} error(s) occured while listing files. See log for details.`);
-    }
+    this._driveApi.walkSubTrees(fileIds, this._fields, file => !(this._pushFile(file)));
     return this;
   }
 
