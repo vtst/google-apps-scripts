@@ -89,6 +89,29 @@ $M.drive.BatchDriveApi = class {
     return response;
   }
 
+  getFile(fileId) {
+    return this._sendRequest({
+      method: 'GET',
+      path: '/drive/v3/files/' + fileId,
+      params: {
+        supportsAllDrives: true,
+        fields: 'id,name,parents,size,modifiedTime,mimeType,trashed'
+      }
+    })
+  }
+
+  patchFile(fileId, patch) {
+    return this._sendRequest({
+      method: 'PATCH',
+      path: '/drive/v3/files/' + fileId,
+      params: {
+        supportsAllDrives: true,
+        fields: 'id,name,parents,size,modifiedTime,mimeType,trashed'
+      },
+      body: patch
+    });
+  }
+
   remove(file) {
     this._sendRequest({
       method: 'PATCH',
@@ -98,13 +121,13 @@ $M.drive.BatchDriveApi = class {
         fields: 'id'
       },
       body: {
-        name: 'hello'
+        trashed: true
       }
     });
   }
 
   copyFile(file, targetParent) {
-    const newFile = this._sendRequest({
+    this._sendRequest({
       method: 'POST',
       path: '/drive/v3/files/' + file.id + '/copy',
       params: {
@@ -112,22 +135,11 @@ $M.drive.BatchDriveApi = class {
         fields: 'id'
       },
       body: {
-        parents: [targetParent.id], name: file.name
-      }
-    });
-    this._sendRequest({
-      method: 'PATCH',
-      path: '/drive/v3/files/' + newFile.id,
-      params: {
-        supportsAllDrives: true,
-        fields: 'id',
-        setModifiedDate: true
-      },
-      body: {
+        parents: [targetParent.id],
+        name: file.name,
         modifiedTime: file.modifiedTime
       }
     });
-    // TODO est-ce que modifiedTime fonctionne comme cela avec la V3?
   }
 
   createFolder(parent, name) {
