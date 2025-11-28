@@ -8,7 +8,7 @@ $M.drive.MockDriveApi = class {
     this._logger = logger;
   }
 
-  remove(file) {
+  removeFile(file) {
     this._logger.info(`File removal: file ID ${file.id} set to trashed: true.`);
   }
 
@@ -21,7 +21,7 @@ $M.drive.MockDriveApi = class {
     return {id: `MOCKED_FOLDER_ID_${parent.id}_${name}`};
   }
 
-  rename(file, newName) {
+  renameFile(file, newName) {
     this._logger.info(`Rename of file ID ${file.id} to "${newName}".`);
   }
 
@@ -30,7 +30,7 @@ $M.drive.MockDriveApi = class {
 // Use the Advanced Drive Service.
 $M.drive.AdvancedDriveServiceApi = class {
 
-  remove(file) {
+  removeFile(file) {
     Drive.Files.update(
       { trashed: true },
       file.id,
@@ -64,7 +64,7 @@ $M.drive.AdvancedDriveServiceApi = class {
     );
   }
 
-  rename(file, newName) {
+  renameFile(file, newName) {
     Drive.Files.update(
       { name: newName }, 
       file.id,
@@ -100,19 +100,7 @@ $M.drive.BatchDriveApi = class {
     })
   }
 
-  patchFile(fileId, patch) {
-    return this._sendRequest({
-      method: 'PATCH',
-      path: '/drive/v3/files/' + fileId,
-      params: {
-        supportsAllDrives: true,
-        fields: 'id,name,parents,size,modifiedTime,mimeType,trashed'
-      },
-      body: patch
-    });
-  }
-
-  remove(file) {
+  removeFile(file) {
     this._sendRequest({
       method: 'PATCH',
       path: '/drive/v3/files/' + file.id,
@@ -158,7 +146,7 @@ $M.drive.BatchDriveApi = class {
     });
   }
 
-  rename(file, newName) {
+  renameFile(file, newName) {
     this._sendRequest({
       method: 'PATCH',
       path: '/drive/v3/files/' + file.id,

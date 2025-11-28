@@ -46,10 +46,10 @@ $M.Syncer = class {
       } else if (!diff.same) {
         if (this._options.rename && (diff.sourceIsFolder || diff.targetIsFolder)) {
           this._logger.info(`Renaming "${diff.targetId}" (${path})`);
-          this._driveApi.rename(target, this._getNewName(source.name));
+          this._driveApi.renameFile(target, this._getNewName(source.name));
         } else {
           this._logger.info(`Removing "${diff.targetId}" (${path})`);
-          this._driveApi.remove(target);
+          this._driveApi.removeFile(target);
         }
         if (targetIsFree) {
           this._logger.info(`Copying "${diff.sourceId}" (${path}) into "${targetParentId}"`);
@@ -64,7 +64,7 @@ $M.Syncer = class {
     } else if (diff.targetExists) {
       if (this._options.remove) {
         this._logger.info(`Removing "${diff.targetId}" (${path})`);
-        this._driveApi.remove(target);
+        this._driveApi.removeFile(target);
       }
     }
   }
