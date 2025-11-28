@@ -86,7 +86,7 @@ $M.sync.syncFolders = (sourceFolderId, targetFolderId, options, opt_directory) =
 $M.sync.multipleSyncFolders = (syncPairs, options, opt_directory) => {
   const folderIds = syncPairs.map(syncPair => ([syncPair.sourceFolderId, syncPair.targetFolderId])).flat();
   const logger = VtstLoggingLib.createLogger({output: 'console', level: options.logging?.level});
-  let driveApi = new $M.drive.AdvancedDriveServiceApi();
+  let driveApi = options.useBatchApi ? new $M.drive.BatchDriveApi : new $M.drive.AdvancedDriveServiceApi;
   const directory = opt_directory || new $M.DirectoryBuilder(driveApi, logger).addSubTrees(folderIds).build();
   try {
     const differ = new $M.Differ(directory);
