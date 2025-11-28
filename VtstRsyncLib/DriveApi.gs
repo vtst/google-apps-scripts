@@ -259,13 +259,15 @@ $M.drive.FifoQueue = class {
   popN(numberOfElements) {
     const startIndex = this._index
     this._index = Math.min(this._index + numberOfElements, this._queue.length);
-    Logger.log(this._index);
     return this._queue.slice(startIndex, this._index);
   }
 
-  pushN(headElements, tailElements) {
-    this._queue.splice(this._index, 0, ... headElements);
-    this._queue.push(... tailElements);
+  push(element) {
+    this._queue.push(element);
+  }
+
+  pushPriorityElements(elements) {
+    if (elements.length > 0) this._queue.splice(this._index, 0, ... elements);
   }
 
   isNotEmpty() {
@@ -277,7 +279,11 @@ $M.drive.FifoQueue = class {
 // Use the batch Drive API.
 $M.drive.BatchDriveApi = class extends $M.drive.MockDriveApi {
 
-  _sendRequest(request) {
+  constructor(logger) {
+    super(logger);
+  }
+
+  _runSingleRequest(request) {
     const responses = VtstBatchHttpRequestsLib.batchRequestJson($M.drive.DRIVE_API_BATCH_URL, [request]);
     const response = responses[0];
     if (response.error) throw new Error(response.error.message);
@@ -285,7 +291,7 @@ $M.drive.BatchDriveApi = class extends $M.drive.MockDriveApi {
   }
 
   getFile(fileId, fields) {
-    const file = this._sendRequest({
+    const file = this._runSingleRequest({
       method: 'GET',
       path: '/drive/v3/files/' + fileId,
       params: {
@@ -298,8 +304,7 @@ $M.drive.BatchDriveApi = class extends $M.drive.MockDriveApi {
   }
 
   listFiles(params) {
-    Logger.log(JSON.stringify(params, null, 2));
-    const response = this._sendRequest({
+    const response = this._runSingleRequest({
       method: 'GET',
       path: '/drive/v3/files',
       params
@@ -308,67 +313,7 @@ $M.drive.BatchDriveApi = class extends $M.drive.MockDriveApi {
     return response;
   }
 
-  removeFile(file) {
-    this._sendRequest({
-      method: 'PATCH',
-      path: '/drive/v3/files/' + file.id,
-      params: {
-        supportsAllDrives: true,
-        fields: 'id'
-      },
-      body: {
-        trashed: true
-      }
-    });
-  }
-
-  copyFile(file, targetParent) {
-    this._sendRequest({
-      method: 'POST',
-      path: '/drive/v3/files/' + file.id + '/copy',
-      params: {
-        supportsAllDrives: true,
-        fields: 'id'
-      },
-      body: {
-        parents: [targetParent.id],
-        name: file.name,
-        modifiedTime: file.modifiedTime
-      }
-    });
-  }
-
-  createFolder(parent, name) {
-    return this._sendRequest({
-      method: 'POST',
-      path: '/drive/v3/files',
-      params: {
-        supportsAllDrives: true,
-        fields: 'id'
-      },
-      body: {
-        name: name,
-        mimeType: $M.drive.FOLDER_MIME_TYPE,
-        parents: [parent.id]
-      }
-    });
-  }
-
-  renameFile(file, newName) {
-    this._sendRequest({
-      method: 'PATCH',
-      path: '/drive/v3/files/' + file.id,
-      params: {
-        supportsAllDrives: true,
-        fields: 'id',
-      },
-      body: {
-        name: newName
-      }
-    });
-  }
-
-  _getFileGetRequest(fields, fileId) {
+  _fileGetRequest(fields, fileId) {
     return {
       method: 'GET',
       path: '/drive/v3/files/' + fileId,
@@ -380,7 +325,7 @@ $M.drive.BatchDriveApi = class extends $M.drive.MockDriveApi {
     };
   }
 
-  _getFileListRequest(fields, fileId, opt_pageToken) {
+  _fileListRequest(fields, fileId, opt_pageToken) {
     return {
       method: 'GET',
       path: '/drive/v3/files',
@@ -398,8 +343,8 @@ $M.drive.BatchDriveApi = class extends $M.drive.MockDriveApi {
 
   walkSubTrees(fileIds, fields, fn, opt_obj) {
     const queue = new $M.drive.FifoQueue([
-      ... fileIds.map(this._getFileGetRequest.bind(this, fields)),
-      ... fileIds.map(fileId => this._getFileListRequest(fields, fileId))
+      ... fileIds.map(this._fileGetRequest.bind(this, fields)),
+      ... fileIds.map(fileId => this._fileListRequest(fields, fileId))
     ]);
     while (queue.isNotEmpty()) {
       const requests = queue.popN($M.drive.MAX_NUMBER_OF_REQUESTS_IN_BATCH);
@@ -414,15 +359,153 @@ $M.drive.BatchDriveApi = class extends $M.drive.MockDriveApi {
             fn.call(opt_obj, response);
           } else if (response.files) {
             // files.list response
-            if (response.nextPageToken) nextPageRequests.push(this._getFileListRequest(fields, request.fileId, response.nextPageToken));
+            if (response.nextPageToken) nextPageRequests.push(this._fileListRequest(fields, request.fileId, response.nextPageToken));
             for (const file of response.files) {
-              if ((!(fn.call(opt_obj, file))) && $M.drive.isFolder(file)) newFolderRequests.push(this._getFileListRequest(fields, file.id));
+              if ((!(fn.call(opt_obj, file))) && $M.drive.isFolder(file)) newFolderRequests.push(this._fileListRequest(fields, file.id));
             }
           }
         }
       });
-      queue.pushN(nextPageRequests, newFolderRequests);
+      queue.pushPriorityElements(nextPageRequests);
+      if (newFolderRequests.length > 0) queue.push(... newFolderRequests);
     }
+  }
+
+  _removeFileRequest(file) {
+    return {
+      method: 'PATCH',
+      path: '/drive/v3/files/' + file.id,
+      params: {
+        supportsAllDrives: true,
+        fields: 'id'
+      },
+      body: {
+        trashed: true
+      }
+    };
+  }
+
+  _copyFileRequest(file, targetParent) {
+    return {
+      method: 'POST',
+      path: '/drive/v3/files/' + file.id + '/copy',
+      params: {
+        supportsAllDrives: true,
+        fields: 'id'
+      },
+      body: {
+        parents: [targetParent.id],
+        name: file.name,
+        modifiedTime: file.modifiedTime
+      }
+    };
+  }
+
+  _createFolderRequest(parent, name) {
+    return {
+      method: 'POST',
+      path: '/drive/v3/files',
+      params: {
+        supportsAllDrives: true,
+        fields: 'id'
+      },
+      body: {
+        name: name,
+        mimeType: $M.drive.FOLDER_MIME_TYPE,
+        parents: [parent.id]
+      }
+    };
+  }
+
+  _copyFileOrCreateFolderRequest(file, targetParent) {
+    if (!file) throw new Error('null file');
+    const request = $M.drive.isFolder(file) ? this._createFolderRequest(targetParent, file.name) : this._copyFileRequest(file, targetParent);
+    request._file = file;
+    request._targetParent = targetParent;
+    return request;
+  }
+
+  _renameFileRequest(file, newName) {
+    return {
+      method: 'PATCH',
+      path: '/drive/v3/files/' + file.id,
+      params: {
+        supportsAllDrives: true,
+        fields: 'id',
+      },
+      body: {
+        name: newName
+      }
+    };
+  }
+
+  _runAllRequests(requests) {
+    const responses = [];
+    for (const index = 0; index < requests.length; index += $M.drive.MAX_NUMBER_OF_REQUESTS_IN_BATCH) {
+      responses.push(... VtstBatchHttpRequestsLib.batchRequestJson(
+        $M.drive.DRIVE_API_BATCH_URL,
+        requests.slice(index, Math.min(index + $M.drive.MAX_NUMBER_OF_REQUESTS_IN_BATCH, requests.length))));
+    }
+  }
+
+  syncStart() {
+    super.syncStart();
+    this._syncNodes = [];
+  }
+
+  syncNode(replacedTargetFile, newName, newSourceFileRoot, targetParent) {
+    this._syncNodes.push({replacedTargetFile, newName, newSourceFileRoot, targetParent});
+  }
+
+  syncEnd() {
+    // Step 1: remove and rename requests.
+    const requests1 = $M.utils.mapFilter(this._syncNodes, (syncNode, index) => {
+      if (syncNode.replacedTargetFile) {
+        const request = syncNode.newName ?
+          this._renameFileRequest(syncNode.replacedTargetFile, syncNode.newName) :
+          this._removeFileRequest(syncNode.replacedTargetFile);
+        request._syncNodeIndex = index;
+        return request;
+      }
+    });
+    if (requests1.length > 0) {
+      const responses1 = this._runAllRequests(requests1);
+      $M.utils.forEach2(requests1, responses1, (request, response) => {
+        if (response.error) {
+          const syncNode = this._syncNodes[request._syncNodeIndex];
+          this._logger.error(`${syncNode.newName ? "Renaming" : "Removal"} of file "${syncNode.replacedTargetFile.id}" failed: ${error.message}`);
+          ++this._numberOfSyncErrors;
+          this._syncNodes[request._syncNodeIndex].step1Failed = true;
+        }
+      });
+    }
+    // Step 2 : perform recursive copy
+    const queue = new $M.drive.FifoQueue;
+    for (const syncNode of this._syncNodes) {
+      if (syncNode.newSourceFileRoot && !syncNode.step1Failed) {
+        queue.push(this._copyFileOrCreateFolderRequest(syncNode.newSourceFileRoot, syncNode.targetParent));
+      }
+    }
+    while (queue.isNotEmpty()) {
+      const requests = queue.popN($M.drive.MAX_NUMBER_OF_REQUESTS_IN_BATCH);
+      const responses = VtstBatchHttpRequestsLib.batchRequestJson($M.drive.DRIVE_API_BATCH_URL, requests);
+      $M.utils.forEach2(requests, responses, (request, response) => {
+        if (response.error) {
+          if ($M.drive.isFolder(request._file)) {
+            this._logger.error(`Creation of folder in "${request._targetParent.id}" failed: ${error.message}`)
+          } else {
+            this._logger.error(`Copy of "${request._file.id}" in "${request._targetParent.id}" failed: ${error.message}`);
+          }
+          ++this._numberOfSyncErrors;
+        } else {
+          if (request._file._children) {
+            const newFolder = {id: response.id};
+            queue.push(... request._file._children.map(child => this._copyFileOrCreateFolderRequest(child, newFolder)));
+          }
+        }
+      });
+    }
+    return super.syncEnd();
   }
 
 };
