@@ -6,10 +6,6 @@ $M.files = {};
 // ********************************************************************************
 // Utility functions for the Drive API.
 
-$M.files.FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
-
-$M.files.isFolder = (file) => (file.mimeType === $M.files.FOLDER_MIME_TYPE);
-
 // A wrapper around Drive.Files.list that support paging.
 $M.files.listAllPages = (optionalArgs, opt_pageSize) => {
   if (!optionalArgs.pageSize) optionalArgs.pageSize = $M.drive.PAGE_SIZE;
@@ -29,7 +25,7 @@ $M.files.getSharedDriveRoot = (driveId) => {
     fields: 'id,name',
     supportsAllDrives: true
   });
-  root.mimeType = $M.files.FOLDER_MIME_TYPE;
+  root.mimeType = $M.drive.FOLDER_MIME_TYPE;
   return root;
 };
 
@@ -114,7 +110,7 @@ $M.Directory = class {
 
   _buildHierarchy(files) {
     for (const file of this._files) {
-      if ($M.files.isFolder(file)) {
+      if ($M.drive.isFolder(file)) {
         file.children = [];
         file.childrenByName = {};
       }

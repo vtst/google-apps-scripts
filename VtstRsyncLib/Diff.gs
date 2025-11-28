@@ -25,8 +25,8 @@ $M.Differ = class {
       sourceId, targetId,
       sourceExists: source ? true : false,
       targetExists: target ? true : false,
-      sourceIsFolder: source && $M.files.isFolder(source),
-      targetIsFolder: target && $M.files.isFolder(target),
+      sourceIsFolder: source && $M.drive.isFolder(source),
+      targetIsFolder: target && $M.drive.isFolder(target),
       same: false
     };
     if (!diff.sourceExists && !diff.targetExists) {

@@ -3,6 +3,11 @@ $M.drive = {};
 
 $M.drive.PAGE_SIZE = 1000;
 
+$M.drive.FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
+
+$M.drive.isFolder = (file) => (file.mimeType === $M.drive.FOLDER_MIME_TYPE);
+
+
 // ********************************************************************************
 // MockDriveApi
 
@@ -104,7 +109,7 @@ $M.drive.AdvancedDriveServiceApi = class {
   createFolder(parent, name) {
     return Drive.Files.create({
         name: name,
-        mimeType: 'application/vnd.google-apps.folder',
+        mimeType: $M.drive.FOLDER_MIME_TYPE,
         parents: [parent.id]
       }, null, { supportsAllDrives: true, fields: 'id' }
     );
@@ -123,7 +128,7 @@ $M.drive.AdvancedDriveServiceApi = class {
     // 'ID_1' in parents or 'ID_2' in parents or 'ID_3' in parents
     const queryBuilder = new $M.drive.QueryBuilder([], "' in parents or '");
     const pushFile = (file) => {
-      if (!fn.call(opt_obj, file) && $M.files.isFolder(file)) queryBuilder.push(file.id)
+      if (!fn.call(opt_obj, file) && $M.drive.isFolder(file)) queryBuilder.push(file.id)
     }
     // Add the initial files passed as argument.
     for (const fileId of fileIds) {
@@ -242,7 +247,7 @@ $M.drive.BatchDriveApi = class {
       },
       body: {
         name: name,
-        mimeType: 'application/vnd.google-apps.folder',
+        mimeType: $M.drive.FOLDER_MIME_TYPE,
         parents: [parent.id]
       }
     });
@@ -312,7 +317,7 @@ $M.drive.BatchDriveApi = class {
             // files.list response
             if (response.nextPageToken) nextPageRequests.push(this._getFileListRequest(fields, request.fileId, response.nextPageToken));
             for (const file of response.files) {
-              if ((!(fn.call(opt_obj, file))) && $M.files.isFolder(file)) newFolderRequests.push(this._getFileListRequest(fields, file.id));
+              if ((!(fn.call(opt_obj, file))) && $M.drive.isFolder(file)) newFolderRequests.push(this._getFileListRequest(fields, file.id));
             }
           }
         }

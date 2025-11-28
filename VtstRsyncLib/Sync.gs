@@ -27,7 +27,7 @@ $M.Syncer = class {
     let success = true;
     this._directory.forEachDownwards(root, (file, targetParentFolder) => {
       if (targetParentFolder) {
-        if ($M.files.isFolder(file)) {
+        if ($M.drive.isFolder(file)) {
           return this._driveApi.createFolder(targetParentFolder, file.name);
         } else {
           this._driveApi.copyFile(file, targetParentFolder);
