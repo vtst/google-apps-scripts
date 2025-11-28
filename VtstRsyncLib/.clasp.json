@@ -17,7 +17,6 @@
     "DriveApi.gs",
     "Files.gs",
     "Diff.gs",
-    "DriveOperator.gs",
     "Sync.gs",
     "Api.gs"],
   "skipSubdirectories": true

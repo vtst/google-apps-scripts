@@ -5,8 +5,8 @@ $M.sync = {};
 // applying a diff (computed by a $M.Differ). 
 $M.Syncer = class {
 
-  constructor(driveOperator, logger, directory, options) {
-    this._driveOperator = driveOperator;
+  constructor(driveApi, logger, directory, options) {
+    this._driveApi = driveApi;
     this._logger = logger;
     this._directory = directory;
     this._options = options;
@@ -23,6 +23,20 @@ $M.Syncer = class {
     return name + this._newNameSuffix;
   }
 
+  _copySubTree(root, rootParentTargetFolder) {
+    let success = true;
+    this._directory.forEachDownwards(root, (file, targetParentFolder) => {
+      if (targetParentFolder) {
+        if ($M.files.isFolder(file)) {
+          return this._driveApi.createFolder(targetParentFolder, file.name);
+        } else {
+          this._driveApi.copyFile(file, targetParentFolder);
+        }
+      }
+    }, rootParentTargetFolder);
+    return success;
+  }
+
   _applyDiffRec(diff, path, sourceParentId, targetParentId) {
     const source = this._directory.getFileById(diff.sourceId);
     const target = this._directory.getFileById(diff.targetId);
@@ -32,25 +46,25 @@ $M.Syncer = class {
       } else if (!diff.same) {
         if (this._options.rename && (diff.sourceIsFolder || diff.targetIsFolder)) {
           this._logger.info(`Renaming "${diff.targetId}" (${path})`);
-          var targetIsFree = this._driveOperator.rename(target, this._getNewName(source.name));
+          this._driveApi.rename(target, this._getNewName(source.name));
         } else {
           this._logger.info(`Removing "${diff.targetId}" (${path})`);
-          var targetIsFree = this._driveOperator.removeRec(target);
+          this._driveApi.remove(target);
         }
         if (targetIsFree) {
           this._logger.info(`Copying "${diff.sourceId}" (${path}) into "${targetParentId}"`);
-          this._driveOperator.copyRec(source, this._directory.getFileById(targetParentId));  // we should have targetParent.
+          this._copySubTree(source, this._directory.getFileById(targetParentId));  // we should have targetParent.
         } else {
           this._logger.warn(`Could not copy "${diff.sourceId}" (${path}) into "${targetParentId}" because previous renaming/removing failed.`);
         }
       }
     } else if (diff.sourceExists) {
       this._logger.info(`Copying "${diff.sourceId}" (${path}) into "${targetParentId}"`);
-      this._driveOperator.copyRec(source, this._directory.getFileById(targetParentId));  // we should have targetParent.
+      this._copySubTree(source, this._directory.getFileById(targetParentId));  // we should have targetParent.
     } else if (diff.targetExists) {
       if (this._options.remove) {
         this._logger.info(`Removing "${diff.targetId}" (${path})`);
-        this._driveOperator.removeRec(target);
+        this._driveApi.remove(target);
       }
     }
   }
@@ -76,20 +90,19 @@ $M.sync.multipleSyncFolders = (syncPairs, options, opt_directory) => {
   try {
     const differ = new $M.Differ(directory);
     const driveApi = options.dryRun ? new $M.drive.MockDriveApi(logger) : new $M.drive.AdvancedDriveServiceApi();
-    const driveOperator = new $M.DriveOperator(directory, driveApi, logger, true);
-    const syncer = new $M.Syncer(driveOperator, logger, directory, options);
+    const syncer = new $M.Syncer(driveApi, logger, directory, options);
     for (const syncPair of syncPairs) {
       const diff = differ.diff(syncPair.sourceFolderId, syncPair.targetFolderId);
       syncer.applyDiff(diff);
     }
-    if (driveOperator.numberOfErrors === 0) {
-      logger.info('Sync successful.');
-    } else {
-      const message = `${driveOperator.numberOfErrors} error(s) occurred during sync.`;
-      logger.error(message);
-      if (!options.muteExceptions) throw new Error(message);
-    }
-    return driveOperator.numberOfErrors;
+    // if (driveOperator.numberOfErrors === 0) {
+    //   logger.info('Sync successful.');
+    // } else {
+    //   const message = `${driveOperator.numberOfErrors} error(s) occurred during sync.`;
+    //   logger.error(message);
+    //   if (!options.muteExceptions) throw new Error(message);
+    // }
+    // return driveOperator.numberOfErrors;
   } finally {
     logger.close();
   }
