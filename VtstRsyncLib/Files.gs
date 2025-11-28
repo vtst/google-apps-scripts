@@ -12,7 +12,7 @@ $M.files.isFolder = (file) => (file.mimeType === $M.files.FOLDER_MIME_TYPE);
 
 // A wrapper around Drive.Files.list that support paging.
 $M.files.listAllPages = (optionalArgs, opt_pageSize) => {
-  if (!optionalArgs.pageSize) optionalArgs.pageSize = 1000;
+  if (!optionalArgs.pageSize) optionalArgs.pageSize = $M.drive.PAGE_SIZE;
   optionalArgs.pageToken = null;
   optionalArgs.fields = optionalArgs.fields ? 'nextPageToken,' + optionalArgs.fields : 'nextPageToken';
   const files = [];
@@ -36,69 +36,11 @@ $M.files.getSharedDriveRoot = (driveId) => {
 // ********************************************************************************
 // Directory
 
-// An helper class to build a Drive query with series of IDs.
-$M.QueryBuilder = class {
-
-  constructor(ids, separator, opt_maxQueryLength) {
-    this._ids = [... ids];
-    this._separator = separator;
-    this._maxQueryLength = opt_maxQueryLength || 8000;
-    this._index = 0;
-  }
-
-  isNotEmpty() {
-    return this._index < this._ids.length;
-  }
-
-  push(parentId) {
-    this._ids.push(parentId);
-  }
-
-  getQuery() {
-    let endIndex = this._index;
-    let queryLength = - this._separator.length;
-    while (endIndex < this._ids.length && queryLength < this._maxQueryLength) {
-      queryLength += this._ids[endIndex].length + this._separator.length;
-      ++endIndex;
-    }
-    if (endIndex > this._index) {
-      const query = this._ids.slice(this._index, endIndex).join(this._separator);
-      this._index = endIndex;
-      return query;
-    }
-  }
-
-};
-
-$M.files.FifoQueue = class {
-
-  constructor(opt_elements) {
-    this._queue = opt_elements || [];
-    this._index = 0;
-  }
-
-  popN(numberOfElements) {
-    const startIndex = this._index
-    this._index = Math.min(this._index + numberOfElements, this._queue.length);
-    Logger.log(this._index);
-    return this._queue.slice(startIndex, this._index);
-  }
-
-  pushN(headElements, tailElements) {
-    this._queue.splice(this._index, 0, ... headElements);
-    this._queue.push(... tailElements);
-  }
-
-  isNotEmpty() {
-    return this._index < this._queue.length;
-  }
-
-};
-
 // A class to build a directory.
 $M.DirectoryBuilder = class {
 
-  constructor(opt_logger) {
+  constructor(driveApi, opt_logger) {
+    this._driveApi = driveApi;
     this._files = [];
     this._filesById = {};
     this._fields = 'id,name,parents,size,modifiedTime,mimeType,trashed';
@@ -152,96 +94,9 @@ $M.DirectoryBuilder = class {
     return this;
   }
 
-  _getFileGetRequest(fileId) {
-    return {
-      method: 'GET',
-      path: '/drive/v3/files/' + fileId,
-      params: {
-        fields: this._fields,
-        supportsAllDrives: true
-      },
-      fileId: fileId
-    };
-  }
-
-  _getFileListRequest(fileId, opt_pageToken) {
-    return {
-      method: 'GET',
-      path: '/drive/v3/files',
-      params: {
-        q: `'${fileId}' in parents and trashed = false`,
-        fields: `nextPageToken,files(${this._fields})`,
-        includeItemsFromAllDrives: true,
-        supportsAllDrives: true,
-        pageSize: $M.files.PAGE_SIZE,
-        pageToken: opt_pageToken
-      },
-      fileId: fileId
-    };
-  }
-
-  addSubTreesWithBatchAPI(fileIds) {
-    const queue = new $M.files.FifoQueue([
-      ... fileIds.map(this._getFileGetRequest.bind(this)),
-      ... fileIds.map(fileId => this._getFileListRequest(fileId))
-    ]);
-    const errors = [];
-    while (queue.isNotEmpty()) {
-      const requests = queue.popN($M.drive.MAX_NUMBER_OF_REQUESTS_IN_BATCH);
-      const responses = VtstBatchHttpRequestsLib.batchRequestJson($M.drive.DRIVE_API_BATCH_URL, requests);
-      const nextPageRequests = [], newFolderRequests = [];
-      $M.utils.forEach2(requests, responses, (request, response) => {
-        if (response.error) {
-          errors.push({request, response});
-          if (this._logger) this._logger.error('Drive API error: ' + response.error.message);
-        } else {
-          if (response.id) {
-            // files.get response
-            this._pushFile(response);
-          } else if (response.files) {
-            // files.list response
-            if (response.nextPageToken) nextPageRequests.push(this._getFileListRequest(request.fileId, response.nextPageToken));
-            for (const file of response.files) {
-              if (this._pushFile(file) && $M.files.isFolder(file)) newFolderRequests.push(this._getFileListRequest(file.id));
-            }
-          }
-        }
-      });
-      queue.pushN(nextPageRequests, newFolderRequests);
-    }
-    return errors;
-  }
-
   // Note: This fails if any folder is deleted while the tree is scanned.
   addSubTrees(fileIds) {
-    // 'ID_1' in parents or 'ID_2' in parents or 'ID_3' in parents
-    const queryBuilder = new $M.QueryBuilder([], "' in parents or '");
-    const pushFile = (file) => {
-      if (this._pushFile(file) && $M.files.isFolder(file)) queryBuilder.push(file.id)
-    }
-    // Add the initial files passed as argument.
-    for (const fileId of fileIds) {
-      try {
-        pushFile(Drive.Files.get(fileId, {
-          fields: this._fields,
-          supportsAllDrives: true
-        }));
-      } catch (error) {
-        if (error.details?.code !== 404) throw error;
-      }
-    }
-    // Add files recursively.
-    while (queryBuilder.isNotEmpty()) {
-      const files = $M.files.listAllPages({
-        q: `('${queryBuilder.getQuery()}' in parents) and trashed = false`,
-        fields: `files(${this._fields})`,
-        includeItemsFromAllDrives: true,
-        supportsAllDrives: true
-      });
-      for (const file of files) {
-        if (this._pushFile(file) && $M.files.isFolder(file)) queryBuilder.push(file.id);
-      }
-    }
+    this._driveApi.walkSubTrees(fileIds, this._fields, file => !(this._pushFile(file)));
     return this;
   }
 

@@ -1,6 +1,11 @@
 var $M = $M || {};
 $M.drive = {};
 
+$M.drive.PAGE_SIZE = 1000;
+
+// ********************************************************************************
+// MockDriveApi
+
 // A mock Drive API that just logs messages on the actions it would do.
 $M.drive.MockDriveApi = class {
 
@@ -23,6 +28,47 @@ $M.drive.MockDriveApi = class {
 
   renameFile(file, newName) {
     this._logger.info(`Rename of file ID ${file.id} to "${newName}".`);
+  }
+
+  walkSubTrees(fileIds, fields, fn, opt_obj) {
+    this._logger.info(`Walk sub-tree of folder IDs ${fileIds.join(', ')}`);
+  }
+
+};
+
+// ********************************************************************************
+// AdvancedDriveServiceApi
+
+// An helper class to build a Drive query with series of IDs.
+$M.drive.QueryBuilder = class {
+
+  constructor(ids, separator, opt_maxQueryLength) {
+    this._ids = [... ids];
+    this._separator = separator;
+    this._maxQueryLength = opt_maxQueryLength || 8000;
+    this._index = 0;
+  }
+
+  isNotEmpty() {
+    return this._index < this._ids.length;
+  }
+
+  push(parentId) {
+    this._ids.push(parentId);
+  }
+
+  getQuery() {
+    let endIndex = this._index;
+    let queryLength = - this._separator.length;
+    while (endIndex < this._ids.length && queryLength < this._maxQueryLength) {
+      queryLength += this._ids[endIndex].length + this._separator.length;
+      ++endIndex;
+    }
+    if (endIndex > this._index) {
+      const query = this._ids.slice(this._index, endIndex).join(this._separator);
+      this._index = endIndex;
+      return query;
+    }
   }
 
 };
@@ -73,11 +119,67 @@ $M.drive.AdvancedDriveServiceApi = class {
     );
   }
 
+  walkSubTrees(fileIds, fields, fn, opt_obj) {
+    // 'ID_1' in parents or 'ID_2' in parents or 'ID_3' in parents
+    const queryBuilder = new $M.drive.QueryBuilder([], "' in parents or '");
+    const pushFile = (file) => {
+      if (!fn.call(opt_obj, file) && $M.files.isFolder(file)) queryBuilder.push(file.id)
+    }
+    // Add the initial files passed as argument.
+    for (const fileId of fileIds) {
+      try {
+        pushFile(Drive.Files.get(fileId, {
+          fields: fields,
+          supportsAllDrives: true
+        }));
+      } catch (error) {
+        if (error.details?.code !== 404) throw error;
+      }
+    }
+    // Add files recursively.
+    while (queryBuilder.isNotEmpty()) {
+      const files = $M.files.listAllPages({
+        q: `('${queryBuilder.getQuery()}' in parents) and trashed = false`,
+        fields: `files(${fields})`,
+        includeItemsFromAllDrives: true,
+        supportsAllDrives: true
+      });
+      for (const file of files) pushFile(file);
+    }
+  }
+
 };
+
+// ********************************************************************************
+// BatchDriveApi
 
 $M.drive.DRIVE_API_BATCH_URL = 'https://www.googleapis.com/batch/drive/v3';
 $M.drive.MAX_NUMBER_OF_REQUESTS_IN_BATCH = 50;
-$M.drive.PAGE_SIZE = 1000;
+
+$M.drive.FifoQueue = class {
+
+  constructor(opt_elements) {
+    this._queue = opt_elements || [];
+    this._index = 0;
+  }
+
+  popN(numberOfElements) {
+    const startIndex = this._index
+    this._index = Math.min(this._index + numberOfElements, this._queue.length);
+    Logger.log(this._index);
+    return this._queue.slice(startIndex, this._index);
+  }
+
+  pushN(headElements, tailElements) {
+    this._queue.splice(this._index, 0, ... headElements);
+    this._queue.push(... tailElements);
+  }
+
+  isNotEmpty() {
+    return this._index < this._queue.length;
+  }
+
+};
 
 // Use the batch Drive API.
 $M.drive.BatchDriveApi = class {
@@ -158,6 +260,66 @@ $M.drive.BatchDriveApi = class {
         name: newName
       }
     });
+  }
+
+  _getFileGetRequest(fields, fileId) {
+    return {
+      method: 'GET',
+      path: '/drive/v3/files/' + fileId,
+      params: {
+        fields,
+        supportsAllDrives: true
+      },
+      fileId: fileId
+    };
+  }
+
+  _getFileListRequest(fields, fileId, opt_pageToken) {
+    return {
+      method: 'GET',
+      path: '/drive/v3/files',
+      params: {
+        q: `'${fileId}' in parents and trashed = false`,
+        fields: `nextPageToken,files(${fields})`,
+        includeItemsFromAllDrives: true,
+        supportsAllDrives: true,
+        pageSize: $M.files.PAGE_SIZE,
+        pageToken: opt_pageToken
+      },
+      fileId: fileId
+    };
+  }
+
+  walkSubTrees(fileIds, fields, fn, opt_obj) {
+    const queue = new $M.drive.FifoQueue([
+      ... fileIds.map(this._getFileGetRequest.bind(this, fields)),
+      ... fileIds.map(fileId => this._getFileListRequest(fields, fileId))
+    ]);
+    const errors = [];
+    while (queue.isNotEmpty()) {
+      const requests = queue.popN($M.drive.MAX_NUMBER_OF_REQUESTS_IN_BATCH);
+      const responses = VtstBatchHttpRequestsLib.batchRequestJson($M.drive.DRIVE_API_BATCH_URL, requests);
+      const nextPageRequests = [], newFolderRequests = [];
+      $M.utils.forEach2(requests, responses, (request, response) => {
+        if (response.error) {
+          errors.push({request, response});
+          // TODO if (this._logger) this._logger.error('Drive API error: ' + response.error.message);
+        } else {
+          if (response.id) {
+            // files.get response
+            fn.call(opt_obj, response);
+          } else if (response.files) {
+            // files.list response
+            if (response.nextPageToken) nextPageRequests.push(this._getFileListRequest(fields, request.fileId, response.nextPageToken));
+            for (const file of response.files) {
+              if ((!(fn.call(opt_obj, file))) && $M.files.isFolder(file)) newFolderRequests.push(this._getFileListRequest(fields, file.id));
+            }
+          }
+        }
+      });
+      queue.pushN(nextPageRequests, newFolderRequests);
+    }
+    return errors;
   }
 
 };
