@@ -38,7 +38,6 @@ $M.sync.Syncer = class {
     }
   }
 
-
   _pushCopy(sourceFile, targetParent) {
     if ($M.drive.isFolder(sourceFile)) {
       this._createFolderQueue.push(
@@ -75,6 +74,7 @@ $M.sync.Syncer = class {
       }
     }
     this._renameAndRemoveQueue.run();
+    this._createFolderQueue.run();
     this._fileCopyQueue.run();
   }
 }
@@ -91,6 +91,7 @@ $M.sync.sync = (folderPairs, opt_options) => {
     logger.info(actions.length);
     logger.info('\n' + actions.map($M.scan.actionToString).join('\n'));
   } else {
+    // TODO: We should log something.
     const syncer = new $M.sync.Syncer(logger, options);
     syncer.sync(actions);
   }

@@ -102,7 +102,7 @@ $M.scan.Scanner = class {
         if (sourceFileIsFolder === $M.drive.isFolder(targetFile)) {
           if (sourceFileIsFolder) {
             // Syncing two folders.
-            this._scanFolders(path, sourceFile, sourceFolder);
+            this._scanFolders(path, sourceFile, targetFile);
           } else {
             // Syncing two files.
             if (this.fileDiffer(sourceFile, targetFile)) {
