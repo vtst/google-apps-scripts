@@ -4,14 +4,8 @@ $M.batch = {};
 // ********************************************************************************
 // Errors
 
-class BatchRequestError extends Error {
-  constructor(code, details) {
-    super(`Batch request failed (${code}): ${details}`);
-    this.code = code;
-  }
-}
 
-$M.batch.EOFError = class extends Error {}
+$M.batch.EOFError = class extends Error { }
 
 // ********************************************************************************
 // Utility functions
@@ -41,7 +35,7 @@ $M.batch.LineParser = class {
     return this._textContent.substring(index);
   }
 
-}
+};
 
 // Split a string in two parts.
 $M.batch.split2 = (text, separator) => {
@@ -97,115 +91,107 @@ $M.batch.getQueryString = (params) => {
 // ********************************************************************************
 // Main functions
 
+// Create the part of the multipart/mixed request for a single request.
+$M.batch.getLinesForRequest = (boundary, request) => {
+  const isJsonRequest = request.body && typeof request.body === 'object';
+  const requestBody = isJsonRequest ? JSON.stringify(request.body) : request.body;
+  const lines = [
+    `--${boundary}`,
+    'Content-Type: application/http',
+    '',
+    `${request.method || 'GET'} ${request.path}${$M.batch.getQueryString(request.params)}`,
+    'Content-Length: ' + (requestBody ? requestBody.length : 0)
+  ];
+  const hasContentTypeHeader = false;
+  $M.batch.forEachEntry(request.headers, ([key, value]) => {
+    hasContentTypeHeader |= key.toLowerCase() === 'content-type';
+    lines.push(key + ': ' + value);
+  });
+  if (isJsonRequest && !hasContentTypeHeader) lines.push('Content-Type: application/json');
+  if (requestBody) lines.push('', requestBody);
+  return lines;
+};
+
+// Parse a part of the multipart response.
+$M.batch.parseResponsePart = (responsePart) => {
+  const response = {};
+  try {
+    const parser = new $M.batch.LineParser(responsePart);
+    // Ignore first line
+    parser.nextLine();
+    // Skip headers + empty line
+    while (parser.nextLine()) { }
+
+    // Parse status line
+    const statusLine = parser.nextLine();
+    if (!statusLine.startsWith('HTTP/1.1')) throw new Error();
+    response.statusCode = parseInt(statusLine.split(' ')[1], 10);
+
+    // Parse headers
+    response.headers = {};
+    for (let line = parser.nextLine(); line; line = parser.nextLine()) {
+      const colonIndex = line.indexOf(':');
+      if (colonIndex > 0) {
+        const key = line.substring(0, colonIndex).trim().toLowerCase();
+        const value = line.substring(colonIndex + 1).trim();
+        response.headers[key] = value;
+      }
+    }
+
+    // Parse body
+    response.body = parser.remainingText();
+    const contentType = response.headers['content-type'];
+    if (contentType && contentType.split(';')[0] === 'application/json') response.json = JSON.parse(response.body);
+  } catch (error) {
+    Logger.log(error);
+    response.error = new Error('Malformed HTTP response');
+  }
+  return response;
+};
+
 /**
 Run a batch API request (multipart/mixed).
 
+@param {string} batchUrl
 @param {Array<{
   method: string,
   path: string,
   headers?: Array.<[string, string]}|Object.<string, string>,
   body?: string|object>} requests   Array of sub-requests.
+@param{{
+  headers?: Array.<[string, string]}|Object.<string, string>,
+  returnOnlyJson?: boolean,
+  }?} opt_options
 @returns {Array<{
   statusCode: number,
   headers: Object.<string, string>,
   body: string,
   json?: object}>}  Array of results.
 */
-function batchRequest(batchUrl, requests) {
-  const oAuthToken = ScriptApp.getOAuthToken();
+function batchRequest(batchUrl, requests, opt_options) {
+  const options = opt_options || {};
   const requestBoundary = 'BOUNDARY_' + Utilities.getUuid();
-  const body = requests.map((request, index) => {
-    const isJsonRequest = request.body && typeof request.body === 'object';
-    const requestBody = isJsonRequest ? JSON.stringify(request.body) : request.body;
-    const lines = [
-      `--${requestBoundary}`,
-      'Content-Type: application/http',
-      `content-id: request-${index}`,
-      '',
-      `${request.method || 'GET'} ${request.path}${$M.batch.getQueryString(request.params)}`,
-      'Content-Length: ' + (requestBody ? requestBody.length : 0)
-    ];
-    const hasContentTypeHeader = false;
-    $M.batch.forEachEntry(request.headers, ([key, value]) => {
-      hasContentTypeHeader |= key.toLowerCase() === 'content-type';
-      lines.push(key + ': ' + value);
-    });
-    if (isJsonRequest && !hasContentTypeHeader) lines.push('Content-Type: application/json');
-    if (requestBody) lines.push('', requestBody);
-    return lines;
-  }).flat().join($M.batch.LINE_SEPARATOR) + `${$M.batch.LINE_SEPARATOR}--${requestBoundary}--`;
+  const requestBody = requests.map($M.batch.getLinesForRequest.bind(null, requestBoundary))
+    .flat()
+    .join($M.batch.LINE_SEPARATOR) + `${$M.batch.LINE_SEPARATOR}--${requestBoundary}--`;
 
   const response = UrlFetchApp.fetch(batchUrl, {
     method: 'POST',
     headers: {
+      ...options.headers,
       'Content-Type': `multipart/mixed; boundary=${requestBoundary}`,
-      'Authorization': 'Bearer ' + oAuthToken
     },
-    payload: Utilities.newBlob(body).getBytes(),
-    muteHttpExceptions: true
+    payload: requestBody  // TODO: Utilities.newBlob(requestBody).getBytes(),
   });
-
-  if (response.getResponseCode() !== 200) {
-    throw new BatchRequestError(response.getResponseCode(), response.getContentText());
-  }
 
   const responseBoundary = $M.batch.getResponseBoundary(response);
   return response.getContentText()
     .split('--' + responseBoundary)
     .slice(1, -1)
-    .map(part => {
-      try {
-        const parser = new $M.batch.LineParser(part);
-        // Ignore first line
-        parser.nextLine();
-        // Skip headers + empty line
-        while (parser.nextLine()) {}
-
-        // Parse status line
-        const statusLine = parser.nextLine();
-        if (!statusLine.startsWith('HTTP/1.1')) throw new Error();      
-        const statusCode = parseInt(statusLine.split(' ')[1], 10);
-
-        // Parse headers
-        const headers = {};
-        for (let line = parser.nextLine(); line; line = parser.nextLine()) {
-          const colonIndex = line.indexOf(':');
-          if (colonIndex > 0) {
-            const key = line.substring(0, colonIndex).trim().toLowerCase();
-            const value = line.substring(colonIndex + 1).trim();
-            headers[key] = value;
-          }
-        }
-
-        // Parse body
-        const body = parser.remainingText();
-        const json = (headers['content-type'] || '').split(';')[0] === 'application/json' ? JSON.parse(body) : undefined;
-
-        return {statusCode, headers, body, json};
-      } catch (error) {
-        return {error: 'Malformed HTTP response'};
-      }
+    .map(responsePart => {
+      const response = $M.batch.parseResponsePart(responsePart);
+      return options.returnOnlyJson ?
+        (response.error ? response : response.json) :
+        response;
     });
-}
-
-/**
-Run a batch API request (multipart/mixed). Return only the JSON response objects.
-
-@param {Array<{
-  method: string,
-  path: string,
-  headers?: Array.<[string, string]}|Object.<string, string>,
-  body?: string|object>} requests   Array of sub-requests.
-@returns {Array<object>}  Array of response objects.
-*/
-function batchRequestJson(batchUrl, requests) {
-  return batchRequest(batchUrl, requests).map(response => {
-    if (response.error) {
-      return {error: {message: response.error}};
-    } else if (response.statusCode >= 200 && response.statusCode < 300) {
-      return response.json;
-    } else {
-      return response.json;
-    }
-  });
 }

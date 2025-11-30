@@ -11,6 +11,9 @@
   "jsonExtensions": [
     ".json"
   ],
-  "filePushOrder": [],
+  "filePushOrder": [
+    "BatchRequests.gs",
+    "Queue.gs"
+  ],
   "skipSubdirectories": true
 }
