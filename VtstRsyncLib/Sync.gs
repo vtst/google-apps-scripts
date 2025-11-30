@@ -1,112 +1,98 @@
 var $M = $M || {};
 $M.sync = {};
 
-// This class allows to synchronize a target directory with a source directory by
-// applying a diff (computed by a $M.Differ). 
-$M.Syncer = class {
+$M.sync.Syncer = class {
 
-  constructor(driveApi, logger, options) {
-    this._driveApi = driveApi;
+  constructor(logger, options) {
     this._logger = logger;
     this._options = options;
-    this._newNameSuffix = '_' + (new Date).toISOString();
+    this._numberOfErrors = 0;
+    this._renameAndRemoveQueue = $M.drive.newBatchRequestQueue();
+    this._createFolderQueue = $M.drive.newBatchRequestQueue();
+    this._fileCopyQueue = $M.drive.newBatchRequestQueue();
   }
 
-  _applyDiffRecOnFolders(diff, path) {
-    $M.utils.forEachValueKey(diff.children, (childDiff, name) => {
-      this._applyDiffRec(childDiff, path + '/' + name, diff.target);
-    });
+  _error(path, message) {
+    this._logger.error(`${path || '/'}: ${message}`);
+    ++this._numberOfErrors;
   }
 
-  _getNewName(name) {
-    return name + this._newNameSuffix;
+  _pushActionForRenameOrRemove(action) {
+    this._renameAndRemoveQueue.push(
+      action.targetNewName ?
+        $M.drive.renameFileRequest(action.targetFile.id, action.targetNewName) :
+        $M.drive.removeFileRequest(action.targetFile.id),
+      response => {
+        if (response.error) {
+          this._logger.error(
+            path, `${action.targetNewName ? 'Renaming' : 'Removing'} target file "${action.targetFile.id}" failed: ${response.error.message}`);
+        } else {
+          this._pushActionForCopy(action);
+        }
+      });
   }
 
-  _applyDiffRec(diff, path, targetParent) {
-    if (diff.source && diff.target) {
-      if (diff.sourceIsFolder && diff.targetIsFolder) {
-        this._applyDiffRecOnFolders(diff, path);
-      } else if (!diff.same) {
-        this._driveApi.syncNode(
-          diff.target,
-          this._options.rename && (diff.sourceIsFolder || diff.targetIsFolder) ? this._getNewName(diff.source.name) : null,
-          diff.source,
-          targetParent
-        );
-      }
-    } else if (diff.source) {
-      this._driveApi.syncNode(
-        null,
-        null,
-        diff.source,
-        targetParent
-      );
-    } else if (diff.target) {
-      if (this._options.remove) {
-        this._driveApi.syncNode(
-          diff.target,
-          null,
-          null,
-          null
-        );
-      }
+  _pushActionForCopy(action) {
+    if (action.sourceFile) {
+      this._pushCopy(action.sourceFile, action.targetParent);
     }
   }
 
-  applyDiffs(diffs) {
-    this._driveApi.syncStart();
-    for (const diff of diffs) {
-      if (!diff.sourceIsFolder) throw new Error('Source is not a folder.');
-      if (!diff.targetIsFolder) throw new Error('Target is not a folder.');
-      this._applyDiffRecOnFolders(diff, '');
-    }
-    return this._driveApi.syncEnd();    
-  }
 
-};
-
-// Main function to sync two folders.
-$M.sync.syncFolders = (sourceFolderId, targetFolderId, options, opt_directory) => {
-  return $M.sync.multipleSyncFolders([{sourceFolderId, targetFolderId}], options, opt_directory);
-};
-
-// Main function to sync set of pairs {sourceFolderId, targetFolderId} folders.
-$M.sync.multipleSyncFolders = (syncPairs, options, opt_directory) => {
-  const folderIds = syncPairs.map(syncPair => ([syncPair.sourceFolderId, syncPair.targetFolderId])).flat();
-  const logger = VtstLoggingLib.createLogger({output: 'console', level: options.logging?.level});
-  let driveApi = options.useBatchApi ? new $M.drive.BatchDriveApi(logger) : new $M.drive.AdvancedDriveServiceApi(logger);
-  const directory = opt_directory || new $M.DirectoryBuilder(driveApi, logger).addSubTrees(folderIds).build();
-  let numberOfErrors = 0;
-  try {
-    // Diffing.
-    const differ = new $M.Differ();
-    const diffs = $M.utils.mapFilter(syncPairs, syncPair => {
-      const source = directory.getFileById(syncPair.sourceFolderId);
-      const target = directory.getFileById(syncPair.targetFolderId);
-      if ($M.files.hasLoop(source)) {
-        logger.error(`Found an infinite loop in the descendants of "${source.id}"`);
-        ++numberOfErrors;
-      } else {
-        return differ.diff(source, target);
-      }
-    });
-    // Syncing.
-    const syncer = new $M.Syncer(driveApi, logger, options);
-    if (options.dryRun) driveApi = new $M.drive.MockDriveApi(logger);
-    const counters = syncer.applyDiffs(diffs);
-    counters.error += numberOfErrors;
-    // Reporting errors.
-    logger.info(counters.toString());
-    if (counters.error === 0) {
-      logger.info('Sync successful.');
-      return true;
+  _pushCopy(sourceFile, targetParent) {
+    if ($M.drive.isFolder(sourceFile)) {
+      this._createFolderQueue.push(
+        $M.drive.createFolderRequest(targetParent.id, sourceFile.name),
+        response => {
+          if (response.error) {
+            this._logger.error(
+              path, `Creating folder "${sourceFile.name}" in "${targetParent.id}" failed: ${response.error.message}`);
+          } else {
+            // response is the new target folder.
+            sourceFile.children.forEach(child => {
+              this._pushCopy(child, response);
+            });
+          }
+        });
     } else {
-      const message = `${counters.error} error(s) occurred during sync.`;
-      logger.error(message);
-      if (!options.muteExceptions) throw new Error(message);
-      return false;
+      this._fileCopyQueue.push(
+        $M.drive.copyFileRequest(sourceFile, targetParent.id),
+        response => {
+          if (response.error) {
+            this._logger.error(
+              path, `Copying source file "${sourceFile.id}" to "${targetParent.id}" failed: ${response.error.message}`);
+          }
+        });
     }
-  } finally {
-    logger.close();
   }
+
+  sync(actions) {
+    for (const action of actions) {
+      if (action.targetFile) {
+        this._pushActionForRenameOrRemove(action);
+      } else {
+        this._pushActionForCopy(action);
+      }
+    }
+    this._renameAndRemoveQueue.run();
+    this._fileCopyQueue.run();
+  }
+}
+
+// TODO: We should scan each pair separately, so that we can discard its actions if it fails.
+$M.sync.sync = (folderPairs, opt_options) => {
+  const options = opt_options || {};
+  const logger = VtstLoggingLib.createLogger({ output: 'console', level: options.logging?.level });
+  const scanner = new $M.scan.Scanner(logger, options);
+  const actions = scanner.scan(folderPairs);
+  // TODO: what to do if errors?
+  actions.sort((action1, action2) => action1.path.localeCompare(action2.path));
+  if (options.dryRun) {
+    logger.info(actions.length);
+    logger.info('\n' + actions.map($M.scan.actionToString).join('\n'));
+  } else {
+    const syncer = new $M.sync.Syncer(logger, options);
+    syncer.sync(actions);
+  }
+  // TODO: what to do if errors?
 };
