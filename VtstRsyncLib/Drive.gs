@@ -8,7 +8,8 @@ $M.drive.FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
 $M.drive.isFolder = (file) => (file.mimeType === $M.drive.FOLDER_MIME_TYPE);
 
 $M.drive.BATCH_URL = 'https://www.googleapis.com/batch/drive/v3';
-$M.drive.BATCH_SIZE = 100;
+$M.drive.BATCH_SIZE = 50;
+$M.drive.PAGE_SIZE = 100;
 $M.drive.FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
 
 // ********************************************************************************
@@ -75,7 +76,7 @@ $M.drive.getChildrenRequest = (fileId) => ({
     fields: `nextPageToken,files(${$M.drive.FILE_FIELDS})`,
     includeItemsFromAllDrives: true,
     supportsAllDrives: true,
-    pageSize: 1000
+    pageSize: $M.drive.PAGE_SIZE
   },
   fileId: fileId,
   pager: $M.drive.PAGER
