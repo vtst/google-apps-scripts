@@ -6,15 +6,19 @@ $M.sync.Syncer = class {
   constructor(logger, options) {
     this._logger = logger;
     this._options = options;
-    this._numberOfErrors = 0;
+    this.numberOfErrors = 0;
     this._renameAndRemoveQueue = $M.drive.newBatchRequestQueue();
     this._createFolderQueue = $M.drive.newBatchRequestQueue();
     this._fileCopyQueue = $M.drive.newBatchRequestQueue();
   }
 
+  _info(path, message) {
+    this._logger.info(`${path || '/'}: ${message}`);
+  }
+
   _error(path, message) {
     this._logger.error(`${path || '/'}: ${message}`);
-    ++this._numberOfErrors;
+    ++this.numberOfErrors;
   }
 
   _pushActionForRenameOrRemove(action) {
@@ -24,9 +28,10 @@ $M.sync.Syncer = class {
         $M.drive.removeFileRequest(action.targetFile.id),
       response => {
         if (response.error) {
-          this._logger.error(
-            path, `${action.targetNewName ? 'Renaming' : 'Removing'} target file "${action.targetFile.id}" failed: ${response.error.message}`);
+          this._error(
+            action.path, `${action.targetNewName ? 'Renaming' : 'Removing'} target file "${action.targetFile.id}" failed: ${response.error.message}`);
         } else {
+          this._info(action.path, `${action.targetNewName ? 'Renamed' : 'Removed'} target file "${action.targetFile.id}"`);
           this._pushActionForCopy(action);
         }
       });
@@ -34,22 +39,22 @@ $M.sync.Syncer = class {
 
   _pushActionForCopy(action) {
     if (action.sourceFile) {
-      this._pushCopy(action.sourceFile, action.targetParent);
+      this._pushCopy(action.path, action.sourceFile, action.targetParent);
     }
   }
 
-  _pushCopy(sourceFile, targetParent) {
+  _pushCopy(path, sourceFile, targetParent) {
     if ($M.drive.isFolder(sourceFile)) {
       this._createFolderQueue.push(
         $M.drive.createFolderRequest(targetParent.id, sourceFile.name),
         response => {
           if (response.error) {
-            this._logger.error(
-              path, `Creating folder "${sourceFile.name}" in "${targetParent.id}" failed: ${response.error.message}`);
+            this._error(path, `Creating folder "${sourceFile.name}" in "${targetParent.id}" failed: ${response.error.message}`);
           } else {
+            this._info(path, `Created folder "${response.id}" in "${targetParent.id}"`);
             // response is the new target folder.
             sourceFile.children.forEach(child => {
-              this._pushCopy(child, response);
+              this._pushCopy(path + '/' + child.name, child, response);
             });
           }
         });
@@ -58,8 +63,9 @@ $M.sync.Syncer = class {
         $M.drive.copyFileRequest(sourceFile, targetParent.id),
         response => {
           if (response.error) {
-            this._logger.error(
-              path, `Copying source file "${sourceFile.id}" to "${targetParent.id}" failed: ${response.error.message}`);
+            this._error(path, `Copying source file "${sourceFile.id}" to "${targetParent.id}" failed: ${response.error.message}`);
+          } else {
+            this._info(path, `Copied source file "${sourceFile.id}" to "${targetParent.id}"`);
           }
         });
     }
@@ -83,8 +89,7 @@ $M.sync.Syncer = class {
 $M.sync.sync = (syncEntries, opt_options) => {
   const options = opt_options || {};
   const logger = VtstLoggingLib.createLogger({ output: 'console', level: options.logging?.level });
-  const actions = $M.scan.scan(logger, options, syncEntries);
-  // TODO: what to do if errors?
+  let {actions, numberOfErrors: numberOfScanErrors} = $M.scan.scan(logger, options, syncEntries);
   actions.sort((action1, action2) => action1.path.localeCompare(action2.path));
   if (options.dryRun) {
     logger.info('\n' + actions.map($M.scan.actionToString).join('\n'));
@@ -92,6 +97,12 @@ $M.sync.sync = (syncEntries, opt_options) => {
     // TODO: We should log something.
     const syncer = new $M.sync.Syncer(logger, options);
     syncer.sync(actions);
+    const numberOfErrors = numberOfScanErrors + syncer.numberOfErrors;
+    if (numberOfErrors > 0) {
+      logger.error(`${numberOfErrors} error(s) occured`);
+    } else {
+      logger.info('Sync successful');
+    }
+    return numberOfErrors;
   }
-  // TODO: what to do if errors?
 };

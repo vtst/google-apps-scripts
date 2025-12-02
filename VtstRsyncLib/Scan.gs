@@ -17,8 +17,8 @@ $M.scan.EntryScanner = class {
     // - path
     // - isFolder
     // - error
-    this._actions = [];
-    this._numberOfErrors = 0;
+    this.actions = [];
+    this.numberOfErrors = 0;
     this._folderIds = new Set;
   }
 
@@ -33,18 +33,19 @@ $M.scan.EntryScanner = class {
   }
 
   _push(action) {
-    this._actions.push(action);
+    this.actions.push(action);
   }
 
   _error(path, message) {
     this._logger.error(`${path || '/'}: ${message}`);
-    ++this._numberOfErrors;
+    ++this.numberOfErrors;
     if (this._options.verbose) this._push({ path, error: message });
   }
 
-  _addOrFailIfAlreadyHas(path, folder) {
+  _alreadyVisited(path, folder) {
     if (this._folderIds.has(folder.id)) {
       this._error(path, `Source folder "${folder.id}" visited twice. The file tree may have been changed during the scan.`);
+      return true;
     } else {
       this._folderIds.add(folder.id);
     }
@@ -73,8 +74,7 @@ $M.scan.EntryScanner = class {
   }
 
   _getDescendants(path, sourceFile) {
-    if ($M.drive.isFolder(sourceFile)) {
-      this._addOrFailIfAlreadyHas(path, sourceFile);
+    if ($M.drive.isFolder(sourceFile) && !this._alreadyVisited(path, sourceFile)) {
       this._queue.push(
         $M.drive.getChildrenRequest(sourceFile.id),
         response => {
@@ -91,7 +91,7 @@ $M.scan.EntryScanner = class {
   }
 
   _scanFolders(path, sourceFile, targetFile) {
-    this._addOrFailIfAlreadyHas(path, sourceFile);
+    if (this._alreadyVisited(path, sourceFile)) return;
     if (this._options.verbose) this._push({ path, isFolder: true });
     this._queue.pushGroup(
       [$M.drive.getChildrenRequest(sourceFile.id), $M.drive.getChildrenRequest(targetFile.id)],
@@ -169,7 +169,16 @@ $M.scan.scan = (logger, options, syncEntries) => {
     return scanner;
   });
   queue.run();
-  return scanners.map(scanner => scanner._actions).flat();
+  $M.utils.array.forEach2(syncEntries, scanners, (syncEntry, scanner) => {
+    if (scanner.numberOfErrors > 0) {
+      logger.error(`Scanning of entry "${syncEntry.name || '.'}" had ${scanner.numberOfErrors} error(s).` +
+        (options.abortIfScanError ? ' Aborting this entry.' : ''));
+    }
+  });
+  return {
+    actions: scanners.map(scanner => ((scanner.numberOfErrors > 0 && options.abortIfScanError) ? [] : scanner.actions)).flat(),
+    numberOfErrors: scanners.reduce((acc, scanner) => acc + scanner.numberOfErrors, 0)
+  }
 };
 
 $M.scan.getLabelForAction = (action) => {
