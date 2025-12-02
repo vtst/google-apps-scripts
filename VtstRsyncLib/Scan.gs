@@ -138,20 +138,22 @@ $M.scan.Scanner = class {
     }
   }
 
-  scan(folderPairs) {
-    for (const folderPair of folderPairs) {
+  scan(syncEntries) {
+    for (const syncEntry of syncEntries) {
       this._queue.pushGroup(
-        [$M.drive.getFileRequest(folderPair.sourceId), $M.drive.getFileRequest(folderPair.targetId)],
+        [$M.drive.getFileRequest(syncEntry.sourceId), $M.drive.getFileRequest(syncEntry.targetId)],
         ([sourceResponse, targetResponse]) => {
-          const path = folderPair.name || '';
+          const path = syncEntry.name || '';
           if (sourceResponse.error) {
-            this._error(path, `Getting root source folder "${folderPair.sourceId}" failed: ${sourceResponse.error.message}`);
+            this._error(path, `Getting root source folder "${syncEntry.sourceId}" failed: ${sourceResponse.error.message}`);
+            if (corporaIncludesSharedDrive) this._error(path, `Trying as a shared drive also failed: ${sourceResponse.error.message}`);
           } else if (targetResponse.error) {
-            this._error(path, `Getting root target folder "${folderPair.sourceId}" failed: ${targetResponse.error.message}`);
+            this._error(path, `Getting root target folder "${syncEntry.targetId}" failed: ${targetResponse.error.message}`);
+            if (corporaIncludesSharedDrive) this._error(path, `Trying as a shared drive also failed: ${targetDriveResponse.error.message}`);
           } else if (!$M.drive.isFolder(sourceResponse)) {
-            this._error(path, `Source root "${folderPair.sourceId}" is not a folder`);
+            this._error(path, `Source root "${syncEntry.sourceId}" is not a folder`);
           } else if (!$M.drive.isFolder(targetResponse)) {
-            this._error(path, `Target root "${folderPair.sourceId}" is not a folder`);
+            this._error(path, `Target root "${syncEntry.targetId}" is not a folder`);
           } else {
             this._scanFolders(path, sourceResponse, targetResponse);
           }
