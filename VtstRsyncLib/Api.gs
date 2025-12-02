@@ -12,8 +12,7 @@ Run a synchronization job.
   logging.level: string,  // error, warning or info
   dryRun: boolean,  // run the diff but does not perform changes.
   verbose: boolean,  // include all nodes of the file tree, including intermediate nodes and nodes with no changes.
-  corpora: string,  // see https://developers.google.com/workspace/drive/api/reference/rest/v3/files/list
-  driveId: string
+  abortIfScanError: boolean  // abort sync for an entry if the full scan can't be performed. Otherwise, sync what could be scanned.
 }}
 */
 function sync(syncEntries, options) {
