@@ -19,6 +19,7 @@ $M.scan.Scanner = class {
     // - error
     this._actions = [];
     this._numberOfErrors = 0;
+    this._folderIds = new Set;
   }
 
   fileDiffer(sourceFile, targetFile) {
@@ -39,6 +40,14 @@ $M.scan.Scanner = class {
     this._logger.error(`${path || '/'}: ${message}`);
     ++this._numberOfErrors;
     if (this._options.verbose) this._push({ path, error: message });
+  }
+
+  _addOrFailIfAlreadyHas(path, folder) {
+    if (this._folderIds.has(folder.id)) {
+      this._error(path, `Source folder "${folder.id}" visited twice. The file tree may have been changed during the scan.`);
+    } else {
+      this._folderIds.add(folder.id);
+    }
   }
 
   _getChildrenByName(children) {
@@ -65,6 +74,7 @@ $M.scan.Scanner = class {
 
   _getDescendants(path, sourceFile) {
     if ($M.drive.isFolder(sourceFile)) {
+      this._addOrFailIfAlreadyHas(path, sourceFile);
       this._queue.push(
         $M.drive.getChildrenRequest(sourceFile.id),
         response => {
@@ -81,6 +91,7 @@ $M.scan.Scanner = class {
   }
 
   _scanFolders(path, sourceFile, targetFile) {
+    this._addOrFailIfAlreadyHas(path, sourceFile);
     if (this._options.verbose) this._push({ path, isFolder: true });
     this._queue.pushGroup(
       [$M.drive.getChildrenRequest(sourceFile.id), $M.drive.getChildrenRequest(targetFile.id)],
