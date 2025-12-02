@@ -1,13 +1,13 @@
 var $M = $M || {};
 $M.scan = {};
 
-$M.scan.Scanner = class {
+$M.scan.EntryScanner = class {
 
-  constructor(logger, options) {
+  constructor(logger, options, queue) {
     this._logger = logger;
     this._options = options;
     this._newNameSuffix = this._options.rename && ('_' + (new Date).toISOString());
-    this._queue = $M.drive.newBatchRequestQueue();
+    this._queue = queue;
     // Each action may have the following fields:
     // - targetFile: a target file to rename (is targetNewName is set) or remove,
     // - targetNewName,
@@ -138,31 +138,38 @@ $M.scan.Scanner = class {
     }
   }
 
-  scan(syncEntries) {
-    for (const syncEntry of syncEntries) {
-      this._queue.pushGroup(
-        [$M.drive.getFileRequest(syncEntry.sourceId), $M.drive.getFileRequest(syncEntry.targetId)],
-        ([sourceResponse, targetResponse]) => {
-          const path = syncEntry.name || '';
-          if (sourceResponse.error) {
-            this._error(path, `Getting root source folder "${syncEntry.sourceId}" failed: ${sourceResponse.error.message}`);
-            if (corporaIncludesSharedDrive) this._error(path, `Trying as a shared drive also failed: ${sourceResponse.error.message}`);
-          } else if (targetResponse.error) {
-            this._error(path, `Getting root target folder "${syncEntry.targetId}" failed: ${targetResponse.error.message}`);
-            if (corporaIncludesSharedDrive) this._error(path, `Trying as a shared drive also failed: ${targetDriveResponse.error.message}`);
-          } else if (!$M.drive.isFolder(sourceResponse)) {
-            this._error(path, `Source root "${syncEntry.sourceId}" is not a folder`);
-          } else if (!$M.drive.isFolder(targetResponse)) {
-            this._error(path, `Target root "${syncEntry.targetId}" is not a folder`);
-          } else {
-            this._scanFolders(path, sourceResponse, targetResponse);
-          }
-        });
-    }
-    this._queue.run();
-    return this._actions;
+  enqueue(syncEntry) {
+    this._queue.pushGroup(
+      [$M.drive.getFileRequest(syncEntry.sourceId), $M.drive.getFileRequest(syncEntry.targetId)],
+      ([sourceResponse, targetResponse]) => {
+        const path = syncEntry.name || '';
+        if (sourceResponse.error) {
+          this._error(path, `Getting root source folder "${syncEntry.sourceId}" failed: ${sourceResponse.error.message}`);
+          if (corporaIncludesSharedDrive) this._error(path, `Trying as a shared drive also failed: ${sourceResponse.error.message}`);
+        } else if (targetResponse.error) {
+          this._error(path, `Getting root target folder "${syncEntry.targetId}" failed: ${targetResponse.error.message}`);
+          if (corporaIncludesSharedDrive) this._error(path, `Trying as a shared drive also failed: ${targetDriveResponse.error.message}`);
+        } else if (!$M.drive.isFolder(sourceResponse)) {
+          this._error(path, `Source root "${syncEntry.sourceId}" is not a folder`);
+        } else if (!$M.drive.isFolder(targetResponse)) {
+          this._error(path, `Target root "${syncEntry.targetId}" is not a folder`);
+        } else {
+          this._scanFolders(path, sourceResponse, targetResponse);
+        }
+      });
   }
 
+};
+
+$M.scan.scan = (logger, options, syncEntries) => {
+  const queue = $M.drive.newBatchRequestQueue();
+  const scanners = syncEntries.map(syncEntry => {
+    const scanner = new $M.scan.EntryScanner(logger, options, queue);
+    scanner.enqueue(syncEntry);
+    return scanner;
+  });
+  queue.run();
+  return scanners.map(scanner => scanner._actions).flat();
 };
 
 $M.scan.getLabelForAction = (action) => {

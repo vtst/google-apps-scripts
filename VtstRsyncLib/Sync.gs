@@ -83,8 +83,7 @@ $M.sync.Syncer = class {
 $M.sync.sync = (syncEntries, opt_options) => {
   const options = opt_options || {};
   const logger = VtstLoggingLib.createLogger({ output: 'console', level: options.logging?.level });
-  const scanner = new $M.scan.Scanner(logger, options);
-  const actions = scanner.scan(syncEntries);
+  const actions = $M.scan.scan(logger, options, syncEntries);
   // TODO: what to do if errors?
   actions.sort((action1, action2) => action1.path.localeCompare(action2.path));
   if (options.dryRun) {
