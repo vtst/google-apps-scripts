@@ -93,12 +93,13 @@ function taking two arguments:
 
 * `docId`: The ID of the Google Document or Spreadsheet the trigger is running for.
 * `settings`: The custom settings object you previously passed to `AddonTriggerLib.setConfigForActiveDocument` (or `setConfigForActiveSpreadsheet`).
+* `scheduling`: The scheduling object containing the trigger configuration.
 
 A typical trigger function looks like:
 
 ```javascript
 function managedAddonTriggerFunction() {
-  VtstAddonTriggerLib.runTrigger((docId, settings) => {
+  VtstAddonTriggerLib.runTrigger((docId, settings, scheduling) => {
     // Your trigger logic goes here
   );
 }
