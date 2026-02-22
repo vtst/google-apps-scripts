@@ -83,11 +83,12 @@ class TriggerManager {
     if (config.scheduling) config.userEmail = userEmail; else delete config.userEmail;
     config.url = this.docUrl;
     PropertiesService.getDocumentProperties().setProperty(this.config.document_property_key, JSON.stringify(config));
-    // Update the user config and the trigger configuration.
+    // Update the user config
+    const userConfig = this.getUserConfig();
+    if (config.scheduling) userConfig.documents[this.docId] = config; else delete userConfig.documents[this.docId];
+    this.setUserConfig(userConfig);
+    // Update the trigger configuration if the scheduling changed.
     if (!_deepEquals(currentConfig.scheduling, config.scheduling)) {
-      const userConfig = this.getUserConfig();
-      if (config.scheduling) userConfig.documents[this.docId] = config; else delete userConfig.documents[this.docId];
-      this.setUserConfig(userConfig);
       this.configureTrigger(userConfig);
     }
   }
